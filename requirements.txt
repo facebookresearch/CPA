@@ -1,3 +1,4 @@
+adjustText
 argparse
 json
 matplotlib
