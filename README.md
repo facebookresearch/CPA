@@ -35,6 +35,9 @@ Additional files and folders:
 
 ## Usage
 
+- As a first step, download the contents of `datasets/` and `pretrained_models/` from [this tarball](https://dl.fbaipublicfiles.com/dlp/cpa_binaries.tar).
+
+
 To learn how to use this repository, check 
 [`./notebooks/demo.ipynb`](notebooks/demo.ipynb), and the following scripts:
 
