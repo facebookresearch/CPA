@@ -47,9 +47,13 @@ To learn how to use this repository, check
 
 * Note that hyperparameters in the `demo.ipynb` are not default and will not work work for new datasets. Please make
 sure to run `run_sweeps.sh` for your new dataset to find best hyperparameters.
-
 ## Examples and Reproducibility
 All the examples and the reproducbility notebooks for the plots in the paper could be found in the [`notebooks/`](notebooks/) folder.
+
+## Curation of your own data to train CPA
+
+* To prepare your data to train CPA, you need to add specific fields to adata object and perfrom data split. Examples on how to add 
+necessary fields for multiple datasets used in the paper can be found in [`preprocessing/`](/https://github.com/facebookresearch/CPA/tree/master/preprocessing) folder.
 
 ## Training a model
 
