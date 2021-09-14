@@ -36,8 +36,9 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
     _, latent_basal = autoencoder.predict(
         dataset.genes,
         dataset.drugs,
-        dataset.cell_types,
-        return_latent_basal=True)
+        dataset.covariates,
+        return_latent_basal=True,
+    )
 
     latent_basal = latent_basal.detach().cpu().numpy()
 
@@ -49,26 +50,29 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
                                  multi_class="auto",
                                  max_iter=10000)
 
-    pert_scores = cross_val_score(
-        clf,
-        StandardScaler().fit_transform(latent_basal), dataset.drugs_names,
-        scoring=make_scorer(balanced_accuracy_score), cv=5, n_jobs=-1)
+    pert_scores, cov_scores = 0, []
 
-    if len(np.unique(dataset.cell_types_names)) > 1:
-        cov_scores = cross_val_score(
-            clf,
-            StandardScaler().fit_transform(latent_basal), dataset.cell_types_names,
-            scoring=make_scorer(balanced_accuracy_score), cv=5, n_jobs=-1)
-        return np.mean(pert_scores), np.mean(cov_scores)
-    else:
-        return np.mean(pert_scores), 0
+    def compute_score(labels):
+        scaler = StandardScaler().fit_transform(latent_basal)
+        scorer = make_scorer(balanced_accuracy_score)
+        return cross_val_score(clf, scaler, labels, scoring=scorer, cv=5, n_jobs=-1)
 
+    if dataset.perturbation_key is not None:
+        pert_scores = compute_score(dataset.drugs_names)
+    for cov in list(dataset.covariate_names):
+        cov_scores = []
+        if len(np.unique(dataset.covariate_names[cov])) == 0:
+            cov_scores = [0]
+            break
+        else:
+            cov_scores.append(compute_score(dataset.covariate_names[cov]))
+        return [np.mean(pert_scores), *[np.mean(cov_score) for cov_score in cov_scores]]
 
 
 def evaluate_r2(autoencoder, dataset, genes_control):
     """
     Measures different quality metrics about an ComPert `autoencoder`, when
-    tasked to translate some `genes_control` into each of the drug/cell_type
+    tasked to translate some `genes_control` into each of the drug/covariates
     combinations described in `dataset`.
 
     Considered metrics are R2 score about means and variances for all genes, as
@@ -90,13 +94,15 @@ def evaluate_r2(autoencoder, dataset, genes_control):
         idx = np.where(dataset.pert_categories == pert_category)[0]
 
         if len(idx) > 30:
-            emb_drugs = dataset.drugs[idx][0].view(
-                1, -1).repeat(num, 1).clone()
-            emb_cts = dataset.cell_types[idx][0].view(
-                1, -1).repeat(num, 1).clone()
+            emb_drugs = dataset.drugs[idx][0].view(1, -1).repeat(num, 1).clone()
+            emb_covars = [
+                covar[idx][0].view(1, -1).repeat(num, 1).clone()
+                for covar in dataset.covariates
+            ]
 
-            genes_predict = autoencoder.predict(
-                genes_control, emb_drugs, emb_cts).detach().cpu()
+            genes_predict = (
+                autoencoder.predict(genes_control, emb_drugs, emb_covars).detach().cpu()
+            )
 
             mean_predict = genes_predict[:, :dim]
             var_predict = genes_predict[:, dim:]
@@ -131,27 +137,33 @@ def evaluate(autoencoder, datasets):
     autoencoder.eval()
     with torch.no_grad():
         stats_test = evaluate_r2(
-            autoencoder,
-            datasets["test_treated"],
-            datasets["test_control"].genes)
+            autoencoder, datasets["test_treated"], datasets["test_control"].genes
+        )
 
-        stats_disent_pert, stats_disent_cov = evaluate_disentanglement(
-            autoencoder, datasets["test"])
+        disent_scores = evaluate_disentanglement(autoencoder, datasets["test"])
+        stats_disent_pert = disent_scores[0]
+        stats_disent_cov = disent_scores[1:]
 
         evaluation_stats = {
             "training": evaluate_r2(
                 autoencoder,
                 datasets["training_treated"],
-                datasets["training_control"].genes),
+                datasets["training_control"].genes,
+            ),
             "test": stats_test,
             "ood": evaluate_r2(
-                autoencoder,
-                datasets["ood"],
-                datasets["test_control"].genes),
+                autoencoder, datasets["ood"], datasets["test_control"].genes
+            ),
             "perturbation disentanglement": stats_disent_pert,
-            "optimal for perturbations": 1/datasets['test'].num_drugs,
+            "optimal for perturbations": 1 / datasets["test"].num_drugs
+            if datasets["test"].num_drugs > 0
+            else None,
             "covariate disentanglement": stats_disent_cov,
-            "optimal for covariates": 1/datasets['test'].num_cell_types,
+            "optimal for covariates": [
+                1 / num for num in datasets["test"].num_covariates
+            ]
+            if datasets["test"].num_covariates[0] > 0
+            else None,
         }
     autoencoder.train()
     return evaluation_stats
@@ -168,13 +180,25 @@ def prepare_compert(args, state_dict=None):
         args["dataset_path"],
         args["perturbation_key"],
         args["dose_key"],
-        args["cell_type_key"],
-        args["split_key"])
+        args["covariate_keys"],
+        args["split_key"],
+    )
+    # if args["gnn_model"] is not None:
+    #     drug_embeddings = Drugemb(
+    #         dim=256,  # TODO: This is set only in Compert model
+    #         gnn_model=args["gnn_model"],
+    #         graph_feats_shape=datasets["training"].graph_feats_shape,
+    #         idx_wo_smiles=datasets["training"].idx_wo_smiles,
+    #         batched_graph_collection=datasets["training"].batched_graph_collection,
+    #         device=device,
+    #     )
+    # else:
+    #     drug_embeddings = None
 
     autoencoder = ComPert(
         datasets["training"].num_genes,
         datasets["training"].num_drugs,
-        datasets["training"].num_cell_types,
+        datasets["training"].num_covariates,
         device=device,
         seed=args["seed"],
         loss_ae=args["loss_ae"],
@@ -210,9 +234,9 @@ def train_compert(args, return_model=False):
     for epoch in range(args["max_epochs"]):
         epoch_training_stats = defaultdict(float)
 
-        for genes, drugs, cell_types in datasets["loader_tr"]:
-            minibatch_training_stats = autoencoder.update(
-                genes, drugs, cell_types)
+        for data in datasets["loader_tr"]:
+            genes, drugs, covariates = data[0], data[1], data[2:]
+            minibatch_training_stats = autoencoder.update(genes, drugs, covariates)
 
             for key, val in minibatch_training_stats.items():
                 epoch_training_stats[key] += val
@@ -276,7 +300,7 @@ def parse_arguments():
     parser.add_argument('--dataset_path', type=str, required=True)
     parser.add_argument('--perturbation_key', type=str, default="condition")
     parser.add_argument('--dose_key', type=str, default="dose_val")
-    parser.add_argument('--cell_type_key', type=str, default="cell_type")
+    parser.add_argument('--covariate_keys', nargs="*", type=str, default="cell_type")
     parser.add_argument('--split_key', type=str, default="split")
     parser.add_argument('--loss_ae', type=str, default='gauss')
     parser.add_argument('--doser_type', type=str, default='sigm')
