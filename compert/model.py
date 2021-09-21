@@ -3,6 +3,8 @@
 import json
 import torch
 import numpy as np
+from typing import Union
+
 
 class NBLoss(torch.nn.Module):
     def __init__(self):
@@ -159,7 +161,7 @@ class ComPert(torch.nn.Module):
             self,
             num_genes,
             num_drugs,
-            num_cell_types,
+            num_covariates,
             device="cpu",
             seed=0,
             patience=5,
@@ -171,7 +173,7 @@ class ComPert(torch.nn.Module):
         # set generic attributes
         self.num_genes = num_genes
         self.num_drugs = num_drugs
-        self.num_cell_types = num_cell_types
+        self.num_covariates = num_covariates
         self.device = device
         self.seed = seed
         self.loss_ae = loss_ae
@@ -202,13 +204,13 @@ class ComPert(torch.nn.Module):
             self.hparams["adversary_depth"] +
             [num_drugs])
 
-        self.adversary_cell_types = MLP(
-            [self.hparams["dim"]] +
-            [self.hparams["adversary_width"]] *
-            self.hparams["adversary_depth"] +
-            [num_cell_types])
-
+        # self.adversary_cell_types = MLP(
+        #     [self.hparams["dim"]] +
+        #     [self.hparams["adversary_width"]] *
+        #     self.hparams["adversary_depth"] +
+        #     [num_cell_types])
         # set dosers
+        self.loss_adversary_drugs = torch.nn.BCEWithLogitsLoss()
         self.doser_type = doser_type
         if doser_type == 'mlp':
             self.dosers = torch.nn.ModuleList()
@@ -223,53 +225,89 @@ class ComPert(torch.nn.Module):
             self.dosers = GeneralizedSigmoid(num_drugs, self.device,
             nonlin=doser_type)
 
-        self.drug_embeddings = torch.nn.Embedding(
-            num_drugs, self.hparams["dim"])
-        self.cell_type_embeddings = torch.nn.Embedding(
-            num_cell_types, self.hparams["dim"])
-
+        if self.num_covariates == [0]:
+            pass
+        else:
+            assert 0 not in self.num_covariates
+            self.adversary_covariates = []
+            self.loss_adversary_covariates = []
+            self.covariates_embeddings = (
+                []
+            )  # TODO: Continue with checking that dict assignment is possible via covaraites names and if dict are possible to use in optimisation
+            for num_covariate in self.num_covariates:
+                self.adversary_covariates.append(
+                    MLP(
+                        [self.hparams["dim"]]
+                        + [self.hparams["adversary_width"]]
+                        * self.hparams["adversary_depth"]
+                        + [num_covariate]
+                    )
+                )
+                self.loss_adversary_covariates.append(torch.nn.CrossEntropyLoss())
+                self.covariates_embeddings.append(
+                    torch.nn.Embedding(num_covariate, self.hparams["dim"])
+                )
+        self.drug_embeddings = (torch.nn.Embedding( self.num_drugs, self.hparams["dim"]))
         # losses
-        if self.loss_ae == 'nb':
+        if self.loss_ae == "nb":
             self.loss_autoencoder = NBLoss()
         else:
             self.loss_autoencoder = GaussianLoss()
-        self.loss_adversary_drugs = torch.nn.BCEWithLogitsLoss()
-        self.loss_adversary_cell_types = torch.nn.CrossEntropyLoss()
+
         self.iteration = 0
 
         self.to(self.device)
 
         # optimizers
+        has_drugs = self.num_drugs > 0
+        has_covariates = self.num_covariates[0] > 0
+        get_params = lambda model, cond: list(model.parameters()) if cond else []
+        _parameters = (
+            get_params(self.encoder, True)
+            + get_params(self.decoder, True)
+            + get_params(self.drug_embeddings, has_drugs)
+        )
+        for emb in self.covariates_embeddings:
+            _parameters.extend(get_params(emb, has_covariates))
+
         self.optimizer_autoencoder = torch.optim.Adam(
-            list(self.encoder.parameters()) +
-            list(self.decoder.parameters()) +
-            list(self.drug_embeddings.parameters()) +
-            list(self.cell_type_embeddings.parameters()),
+            _parameters,
             lr=self.hparams["autoencoder_lr"],
-            weight_decay=self.hparams["autoencoder_wd"])
+            weight_decay=self.hparams["autoencoder_wd"],
+        )
+
+        _parameters = get_params(self.adversary_drugs, has_drugs)
+        for adv in self.adversary_covariates:
+            _parameters.extend(get_params(adv, has_covariates))
 
         self.optimizer_adversaries = torch.optim.Adam(
-            list(self.adversary_drugs.parameters()) +
-            list(self.adversary_cell_types.parameters()),
+            _parameters,
             lr=self.hparams["adversary_lr"],
-            weight_decay=self.hparams["adversary_wd"])
+            weight_decay=self.hparams["adversary_wd"],
+        )
 
-        self.optimizer_dosers = torch.optim.Adam(
-            self.dosers.parameters(),
-            lr=self.hparams["dosers_lr"],
-            weight_decay=self.hparams["dosers_wd"])
+        if has_drugs:
+            self.optimizer_dosers = torch.optim.Adam(
+                self.dosers.parameters(),
+                lr=self.hparams["dosers_lr"],
+                weight_decay=self.hparams["dosers_wd"],
+            )
 
         # learning rate schedulers
         self.scheduler_autoencoder = torch.optim.lr_scheduler.StepLR(
-            self.optimizer_autoencoder, step_size=self.hparams["step_size_lr"])
+            self.optimizer_autoencoder, step_size=self.hparams["step_size_lr"]
+        )
 
         self.scheduler_adversary = torch.optim.lr_scheduler.StepLR(
-            self.optimizer_adversaries, step_size=self.hparams["step_size_lr"])
+            self.optimizer_adversaries, step_size=self.hparams["step_size_lr"]
+        )
 
-        self.scheduler_dosers = torch.optim.lr_scheduler.StepLR(
-            self.optimizer_dosers, step_size=self.hparams["step_size_lr"])
+        if has_drugs:
+            self.scheduler_dosers = torch.optim.lr_scheduler.StepLR(
+                self.optimizer_dosers, step_size=self.hparams["step_size_lr"]
+            )
 
-        self.history = {'epoch': [], 'stats_epoch': []}
+        self.history = {"epoch": [], "stats_epoch": []}
 
     def set_hparams_(self, seed, hparams):
         """
@@ -329,15 +367,17 @@ class ComPert(torch.nn.Module):
 
         return self.hparams
 
-    def move_inputs_(self, genes, drugs, cell_types):
+    def move_inputs_(self, genes, drugs, covariates):
         """
         Move minibatch tensors to CPU/GPU.
         """
         if genes.device.type != self.device:
             genes = genes.to(self.device)
-            drugs = drugs.to(self.device)
-            cell_types = cell_types.to(self.device)
-        return genes, drugs, cell_types
+            if drugs is not None:
+                drugs = drugs.to(self.device)
+            if covariates is not None:
+                covariates = [cov.to(self.device) for cov in covariates]
+        return (genes, drugs, covariates)
 
     def compute_drug_embeddings_(self, drugs):
         """
@@ -354,31 +394,40 @@ class ComPert(torch.nn.Module):
         else:
             return self.dosers(drugs) @ self.drug_embeddings.weight
 
-
-    def predict(self, genes, drugs, cell_types, return_latent_basal=False):
+    def predict(self, genes, drugs, covariates, return_latent_basal=False):
         """
         Predict "what would have the gene expression `genes` been, had the
         cells in `genes` with cell types `cell_types` been treated with
         combination of drugs `drugs`.
         """
 
-        genes, drugs, cell_types = self.move_inputs_(genes, drugs, cell_types)
+        genes, drugs, covariates = self.move_inputs_(genes, drugs, covariates)
 
         latent_basal = self.encoder(genes)
-        drug_emb = self.compute_drug_embeddings_(drugs)
-        cell_emb = self.cell_type_embeddings(cell_types.argmax(1))
 
-        latent_treated = latent_basal + drug_emb + cell_emb
+        latent_treated = latent_basal
+
+        if self.num_drugs > 0:
+            latent_treated = latent_treated + self.compute_drug_embeddings_(drugs)
+        if self.num_covariates[0] > 0:
+            for i, emb in enumerate(self.covariates_embeddings):
+                emb = emb.to(self.device)
+                latent_treated = latent_treated + emb(
+                    covariates[i].argmax(1)
+                )  # TODO: Why argmax here?
+
         gene_reconstructions = self.decoder(latent_treated)
 
         # convert variance estimates to a positive value in [1e-3, \infty)
         dim = gene_reconstructions.size(1) // 2
-        gene_reconstructions[:, dim:] =\
+        gene_reconstructions[:, dim:] = (
             gene_reconstructions[:, dim:].exp().add(1).log().add(1e-3)
+        )
 
-        if self.loss_ae == 'nb':
-            gene_reconstructions[:, :dim] =\
+        if self.loss_ae == "nb":
+            gene_reconstructions[:, :dim] = (
                 gene_reconstructions[:, :dim].exp().add(1).log().add(1e-4)
+            )
             # gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
             # gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-6, max=1e6)
 
@@ -404,72 +453,92 @@ class ComPert(torch.nn.Module):
 
         return self.patience_trials > self.patience
 
-    def update(self, genes, drugs, cell_types):
+    def update(self, genes, drugs, covariates):
         """
         Update ComPert's parameters given a minibatch of genes, drugs, and
         cell types.
         """
-
-        genes, drugs, cell_types = self.move_inputs_(genes, drugs, cell_types)
+        genes, drugs, covariates = self.move_inputs_(genes, drugs, covariates)
 
         gene_reconstructions, latent_basal = self.predict(
-            genes, drugs, cell_types, return_latent_basal=True)
+            genes,
+            drugs,
+            covariates,
+            return_latent_basal=True,
+        )
 
-        reconstruction_loss = self.loss_autoencoder(
-            gene_reconstructions, genes)
+        reconstruction_loss = self.loss_autoencoder(gene_reconstructions, genes)
 
-        adversary_drugs_predictions = self.adversary_drugs(
-            latent_basal)
-        adversary_drugs_loss = self.loss_adversary_drugs(
-            adversary_drugs_predictions, drugs.gt(0).float())
+        adversary_drugs_loss = torch.tensor([0.0], device=self.device)
+        if self.num_drugs > 0:
+            adversary_drugs_predictions = self.adversary_drugs(latent_basal)
+            adversary_drugs_loss = self.loss_adversary_drugs(
+                adversary_drugs_predictions, drugs.gt(0).float()
+            )
 
-        adversary_cell_types_predictions = self.adversary_cell_types(
-            latent_basal)
-        adversary_cell_types_loss = self.loss_adversary_cell_types(
-            adversary_cell_types_predictions, cell_types.argmax(1))
+        adversary_covariates_loss = torch.tensor(
+            [0.0], device=self.device
+        )  # TODO: Is one scalar enough?
+        if self.num_covariates[0] > 0:
+            adversary_covariate_predictions = []
+            for i, adv in enumerate(self.adversary_covariates):
+                adv = adv.to(self.device)
+                adversary_covariate_predictions.append(adv(latent_basal))
+                adversary_covariates_loss += self.loss_adversary_covariates[i](
+                    adversary_covariate_predictions[-1], covariates[i].argmax(1)
+                )
 
         # two place-holders for when adversary is not executed
-        adversary_drugs_penalty = torch.Tensor([0])
-        adversary_cell_types_penalty = torch.Tensor([0])
+        adversary_drugs_penalty = torch.tensor([0.0], device=self.device)
+        adversary_covariates_penalty = torch.tensor([0.0], device=self.device)
 
         if self.iteration % self.hparams["adversary_steps"]:
-            adversary_drugs_penalty = torch.autograd.grad(
-                adversary_drugs_predictions.sum(),
-                latent_basal,
-                create_graph=True)[0].pow(2).mean()
 
-            adversary_cell_types_penalty = torch.autograd.grad(
-                adversary_cell_types_predictions.sum(),
-                latent_basal,
-                create_graph=True)[0].pow(2).mean()
+            def compute_gradients(output, input):
+                grads = torch.autograd.grad(output, input, create_graph=True)
+                grads = grads[0].pow(2).mean()
+                return grads
+
+            if self.num_drugs > 0:
+                adversary_drugs_penalty = compute_gradients(
+                    adversary_drugs_predictions.sum(), latent_basal
+                )
+
+            if self.num_covariates[0] > 0:
+                adversary_covariates_penalty = torch.tensor([0.0], device=self.device)
+                for pred in adversary_covariate_predictions:
+                    adversary_covariates_penalty += compute_gradients(
+                        pred.sum(), latent_basal
+                    )  # TODO: Adding up tensor sum, is that right?
 
             self.optimizer_adversaries.zero_grad()
-            (adversary_drugs_loss +
-             self.hparams["penalty_adversary"] *
-             adversary_drugs_penalty +
-             adversary_cell_types_loss +
-             self.hparams["penalty_adversary"] *
-             adversary_cell_types_penalty).backward()
+            (
+                adversary_drugs_loss
+                + self.hparams["penalty_adversary"] * adversary_drugs_penalty
+                + adversary_covariates_loss
+                + self.hparams["penalty_adversary"] * adversary_covariates_penalty
+            ).backward()
             self.optimizer_adversaries.step()
         else:
             self.optimizer_autoencoder.zero_grad()
-            self.optimizer_dosers.zero_grad()
-            (reconstruction_loss -
-             self.hparams["reg_adversary"] *
-             adversary_drugs_loss -
-             self.hparams["reg_adversary"] *
-             adversary_cell_types_loss).backward()
+            if self.num_drugs > 0:
+                self.optimizer_dosers.zero_grad()
+            (
+                reconstruction_loss
+                - self.hparams["reg_adversary"] * adversary_drugs_loss
+                - self.hparams["reg_adversary"] * adversary_covariates_loss
+            ).backward()
             self.optimizer_autoencoder.step()
-            self.optimizer_dosers.step()
-
+            if self.num_drugs > 0:
+                self.optimizer_dosers.step()
         self.iteration += 1
 
         return {
             "loss_reconstruction": reconstruction_loss.item(),
             "loss_adv_drugs": adversary_drugs_loss.item(),
-            "loss_adv_cell_types": adversary_cell_types_loss.item(),
+            "loss_adv_covariates": adversary_covariates_loss.item(),
             "penalty_adv_drugs": adversary_drugs_penalty.item(),
-            "penalty_adv_cell_types": adversary_cell_types_penalty.item()
+            "penalty_adv_covariates": adversary_covariates_penalty.item(),
         }
 
     @classmethod
