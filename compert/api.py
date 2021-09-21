@@ -9,14 +9,45 @@ import re
 import itertools
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_distances, euclidean_distances
+import compert
 from compert.data import SubDataset
+from compert.train import prepare_compert, evaluate
+import time
 import copy
+import pprint
+import json
+from collections import defaultdict
+from tqdm import tqdm
+import os
+
+def pjson(s):
+    """
+    Prints a string in JSON format and flushes stdout
+    """
+    print(json.dumps(s), flush=True)
 
 class ComPertAPI:
     """
     API for ComPert model to make it compatible with scanpy.
     """
-    def __init__(self, datasets, model):
+    def __init__(
+        self,
+        dataset_path,
+        cell_type_key='cell_type',
+        split_key='split', # necessary field for train, test, ood splits.
+        perturbation_key='condition', # necessary field for perturbations
+        dose_key='dose_val', # necessary field for dose. Fill in with dummy variable if dose is the same.         
+        doser_type='sigm', # non-linearity for doser function
+        save_dir='/tmp', # directory to save the model
+        decoder_activation='linear', # last layer of the decoder
+        loss_ae='gauss', # loss (currently only gaussian loss is supported)
+        patience=20, # patience for early stopping     
+        seed=0, # random seed
+        sweep_seeds=0,
+        pretrained=None,
+        device='cpu',
+        hparams={},        
+        ):
         """
         Parameters
         ----------
@@ -25,14 +56,31 @@ class ComPertAPI:
         model : ComPertModel
             Pre-trained ComPert model.
         """
-        dataset = datasets['training']
+        args=locals()
+        del args['self']        
+
+        if not (pretrained is None):
+            print(f'Loaded pretrained model from:\t{pretrained}')
+            state, self.used_args, self.history =\
+                torch.load(pretrained, map_location=torch.device(device))
+            args = self.used_args
+            args['dataset_path'] = dataset_path
+            # args['hparams'] = self.used_args['hparams']
+            # args['doser_type'] = self.used_args['doser_type']
+            # args['decoder_activation'] = self.used_args['decoder_activation']
+        else:
+            state = None
+        
+        self.args = args
+        self.model, self.datasets = prepare_compert(args, state_dict=state)
+
+        dataset = self.datasets['training']
         self.perturbation_key = dataset.perturbation_key
         self.dose_key = dataset.dose_key
         self.covars_key = dataset.covars_key
         self.min_dose = dataset.drugs[dataset.drugs > 0].min().item()
         self.max_dose = dataset.drugs[dataset.drugs > 0].max().item()
 
-        self.model = model
         self.var_names = dataset.var_names
 
         self.unique_perts = list(dataset.perts_dict.keys())
@@ -52,16 +100,16 @@ class ComPertAPI:
         self.control_cat = None
 
         self.seen_covars_perts = {}
-        for k in datasets.keys():
-            self.seen_covars_perts[k] =  np.unique(datasets[k].pert_categories)
+        for k in self.datasets.keys():
+            self.seen_covars_perts[k] =  np.unique(self.datasets[k].pert_categories)
 
         self.measured_points = {}
         self.num_measured_points = {}
-        for k in datasets.keys():
+        for k in self.datasets.keys():
             self.measured_points[k] = {}
             self.num_measured_points[k] = {}
-            for pert in np.unique(datasets[k].pert_categories):
-                num_points = len(np.where(datasets[k].pert_categories == pert)[0])
+            for pert in np.unique(self.datasets[k].pert_categories):
+                num_points = len(np.where(self.datasets[k].pert_categories == pert)[0])
                 self.num_measured_points[k][pert] = num_points
 
                 cov, drug, dose = pert.split('_')
@@ -86,6 +134,108 @@ class ComPertAPI:
                     self.measured_points['all'][cov][pert] =\
                         self.measured_points['ood'][cov][pert].copy()
 
+    def load(self, pretrained):
+        print(f'Loaded pretrained model from:\t{pretrained}')
+        state, self.used_args, self.history =\
+            torch.load(pretrained, map_location=torch.device(device))
+        self.model.load_state_dict(state_dict)
+
+    def train(
+        self,
+        max_epochs=5, # maximum epochs for training
+        checkpoint_freq=20, # checkoint frequencty to save intermediate results        
+        max_minutes=60, # maximum computation time           
+        batch_size=None,
+        save_dir='./',
+        seed=0,
+        filename='model.pt'
+        ):
+        args=locals()
+        del args['self']
+        # print('Training...')
+        # pprint.pprint(args)
+        self.args.update(args)
+
+        if batch_size is None:
+            batch_size = self.model.hparams["batch_size"]
+            args['batch_size'] = batch_size
+
+        self.datasets.update({
+            "loader_tr": torch.utils.data.DataLoader(
+                            self.datasets["training"],
+                            batch_size=batch_size,
+                            shuffle=True)
+        })
+
+        # pjson({"training_args": args})
+        # pjson({"autoencoder_params": self.model.hparams})
+
+        start_time = time.time()
+        pbar = tqdm(range(max_epochs), ncols=80)
+        try:
+            for epoch in pbar:
+                epoch_training_stats = defaultdict(float)
+
+                for genes, drugs, cell_types in self.datasets["loader_tr"]:
+                    minibatch_training_stats = self.model.update(
+                        genes, drugs, cell_types)
+
+                    for key, val in minibatch_training_stats.items():
+                        epoch_training_stats[key] += val
+
+                for key, val in epoch_training_stats.items():
+                    epoch_training_stats[key] = val / len(self.datasets["loader_tr"])
+                    if not (key in self.model.history.keys()):
+                        self.model.history[key] = []
+                    self.model.history[key].append(epoch_training_stats[key])
+                self.model.history['epoch'].append(epoch)
+
+                ellapsed_minutes = (time.time() - start_time) / 60
+                self.model.history['elapsed_time_min'] = ellapsed_minutes
+
+                # decay learning rate if necessary
+                # also check stopping condition: patience ran out OR
+                # time ran out OR max epochs achieved
+                stop = ellapsed_minutes > max_minutes or (epoch == max_epochs - 1)
+
+                pbar.set_description(
+                    f"Rec: {epoch_training_stats['loss_reconstruction']:.4f}, "+
+                    f"AdvPert: {epoch_training_stats['loss_adv_drugs']:.2f}, "+
+                    f"AdvCov: {epoch_training_stats['loss_adv_cell_types']:.2f}")
+
+                if (epoch % checkpoint_freq) == 0 or stop:
+                    evaluation_stats = evaluate(self.model, self.datasets)
+                    for key, val in evaluation_stats.items():
+                        if not (key in self.model.history.keys()):
+                            self.model.history[key] = []
+                        self.model.history[key].append(val)
+                    self.model.history['stats_epoch'].append(epoch)                                
+                    
+                    stop = stop or self.model.early_stopping(
+                        np.mean(evaluation_stats["test"]))
+                    if stop:
+                        self.save(
+                            f"{save_dir}{filename}")
+                        pprint.pprint({
+                            "epoch": epoch,
+                            "training_stats": epoch_training_stats,
+                            "evaluation_stats": evaluation_stats,
+                            "ellapsed_minutes": ellapsed_minutes
+                        })
+
+                        pjson({"Stop epoch": epoch})
+                        break
+
+        except KeyboardInterrupt:
+            self.save(f"{save_dir}{filename}")
+
+        self.save(f"{save_dir}{filename}")
+
+    def save(self, filename):
+        torch.save(
+            (self.model.state_dict(), self.args, self.model.history),
+            filename)
+        pjson({"model_saved": "{}".format(filename)})
 
     def get_drug_embeddings(self, dose=1.0, return_anndata=True):
         """

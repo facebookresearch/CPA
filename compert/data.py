@@ -37,13 +37,14 @@ def ranks_to_df(data, key='rank_genes_groups'):
 
 class Dataset:
     def __init__(self,
-                 fname,
-                 perturbation_key,
-                 dose_key,
-                 cell_type_key,
+                 data,
+                 perturbation_key='condition',
+                 dose_key='dose_val',
+                 cell_type_key='cell_type',
                  split_key='split'):
-
-        data = sc.read(fname)
+        
+        if type(data) == str:
+            data = sc.read(data)
 
         self.perturbation_key = perturbation_key
         self.dose_key = dose_key

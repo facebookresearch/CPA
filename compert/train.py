@@ -221,7 +221,7 @@ def train_compert(args, return_model=False):
             epoch_training_stats[key] = val / len(datasets["loader_tr"])
             if not (key in autoencoder.history.keys()):
                 autoencoder.history[key] = []
-            autoencoder.history[key].append(val)
+            autoencoder.history[key].append(epoch_training_stats[key])
         autoencoder.history['epoch'].append(epoch)
 
         ellapsed_minutes = (time.time() - start_time) / 60
