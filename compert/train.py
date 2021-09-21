@@ -53,9 +53,12 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
     pert_scores, cov_scores = 0, []
 
     def compute_score(labels):
-        scaler = StandardScaler().fit_transform(latent_basal)
-        scorer = make_scorer(balanced_accuracy_score)
-        return cross_val_score(clf, scaler, labels, scoring=scorer, cv=5, n_jobs=-1)
+        if len(np.unique(labels)) > 1:
+            scaler = StandardScaler().fit_transform(latent_basal)
+            scorer = make_scorer(balanced_accuracy_score)
+            return cross_val_score(clf, scaler, labels, scoring=scorer, cv=5, n_jobs=-1)
+        else:
+            return 0
 
     if dataset.perturbation_key is not None:
         pert_scores = compute_score(dataset.drugs_names)

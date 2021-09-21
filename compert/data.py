@@ -61,7 +61,7 @@ class Dataset:
         if isinstance(covariate_keys, str):
             covariate_keys = [covariate_keys]
         self.covariate_keys = covariate_keys
-
+        
         if perturbation_key is not None:
             if dose_key is None:
                 raise ValueError(
@@ -205,7 +205,6 @@ class SubDataset:
         self.perturbation_key = dataset.perturbation_key
         self.dose_key = dataset.dose_key
         self.covariate_keys = dataset.covariate_keys
-
 
         self.perts_dict = dataset.atomic_drugs_dict
         self.covars_dict = dataset.atomic_сovars_dict

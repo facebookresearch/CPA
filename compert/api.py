@@ -19,6 +19,7 @@ import json
 from collections import defaultdict
 from tqdm import tqdm
 import os
+from compert.data import load_dataset_splits
 
 def pjson(s):
     """
@@ -33,7 +34,7 @@ class ComPertAPI:
     def __init__(
         self,
         dataset_path,
-        cell_type_key='cell_type',
+        covariate_keys=['cell_type'],
         split_key='split', # necessary field for train, test, ood splits.
         perturbation_key='condition', # necessary field for perturbations
         dose_key='dose_val', # necessary field for dose. Fill in with dummy variable if dose is the same.         
@@ -65,9 +66,7 @@ class ComPertAPI:
                 torch.load(pretrained, map_location=torch.device(device))
             args = self.used_args
             args['dataset_path'] = dataset_path
-            # args['hparams'] = self.used_args['hparams']
-            # args['doser_type'] = self.used_args['doser_type']
-            # args['decoder_activation'] = self.used_args['decoder_activation']
+            args['covariate_keys'] = ['cell_type']
         else:
             state = None
         
@@ -77,23 +76,30 @@ class ComPertAPI:
         dataset = self.datasets['training']
         self.perturbation_key = dataset.perturbation_key
         self.dose_key = dataset.dose_key
-        self.covars_key = dataset.covars_key
+        self.covariate_keys = covariate_keys
         self.min_dose = dataset.drugs[dataset.drugs > 0].min().item()
         self.max_dose = dataset.drugs[dataset.drugs > 0].max().item()
 
         self.var_names = dataset.var_names
 
         self.unique_perts = list(dataset.perts_dict.keys())
-        self.unique_сovars = list(dataset.covars_dict.keys())
+        self.unique_сovars = {}
+        for cov in dataset.covars_dict:
+            self.unique_сovars[cov] = list(dataset.covars_dict[cov].keys())
         self.num_drugs = dataset.num_drugs
 
         self.perts_dict = dataset.perts_dict
         self.covars_dict = dataset.covars_dict
 
         self.drug_ohe = torch.Tensor(list(dataset.perts_dict.values()))
-        self.covars_ohe = torch.LongTensor(list(dataset.covars_dict.values()))
 
-        self.emb_covars = None
+        self.covars_ohe = {}
+        for cov in dataset.covars_dict:
+            self.covars_ohe[cov] = torch.LongTensor(list(dataset.covars_dict[cov].values()))
+
+        self.emb_covars = {}
+        for cov in dataset.covars_dict:
+            self.emb_covars[cov] = None
         self.emb_perts = None
         self.seen_covars_perts = None
         self.comb_emb = None
@@ -176,9 +182,10 @@ class ComPertAPI:
             for epoch in pbar:
                 epoch_training_stats = defaultdict(float)
 
-                for genes, drugs, cell_types in self.datasets["loader_tr"]:
+                for data in self.datasets["loader_tr"]:
+                    genes, drugs, covariates = data[0], data[1], data[2:]
                     minibatch_training_stats = self.model.update(
-                        genes, drugs, cell_types)
+                        genes, drugs, covariates)
 
                     for key, val in minibatch_training_stats.items():
                         epoch_training_stats[key] += val
@@ -258,7 +265,7 @@ class ComPertAPI:
             adata.obs[self.perturbation_key] = self.unique_perts
             return adata
 
-    def get_covars_embeddings(self, return_anndata=True):
+    def get_covars_embeddings(self, covars_key, return_anndata=True):
         """
         Parameters
         ----------
@@ -270,13 +277,16 @@ class ComPertAPI:
         If return_anndata is True, returns anndata object. Otherwise, doesn't
         return anything. Always saves embeddding in self.emb_covars.
         """
-        self.emb_covars = self.model.cell_type_embeddings(
-            self.covars_ohe.to(self.model.device).argmax(1)
+        assert covars_key in self.covariate_keys
+
+        i_cov = self.covariate_keys.index(covars_key)
+        self.emb_covars[covars_key] = self.model.covariates_embeddings[i_cov](
+            self.covars_ohe[covars_key].to(self.model.device).argmax(1)
             ).cpu().clone().detach().numpy()
 
         if return_anndata:
-            adata = sc.AnnData(self.emb_covars)
-            adata.obs[self.covars_key] = self.unique_сovars
+            adata = sc.AnnData(self.emb_covars[covars_key])
+            adata.obs[covars_key] = self.unique_сovars[covars_key]
             return adata
 
     def get_drug_encoding_(self, drugs, doses=None):
@@ -447,7 +457,7 @@ class ComPertAPI:
 
         return df
 
-    def compute_comb_emb(self, thrh=30):
+    def compute_comb_emb(self, cov, thrh=30):
         """
         Generates an AnnData object containing all the latent vectors of the
         cov+dose*pert combinations seen during training.
@@ -461,7 +471,7 @@ class ComPertAPI:
         if self.seen_covars_perts['training'] is None:
             raise ValueError('Need to run parse_training_conditions() first!')
 
-        emb_covars = self.get_covars_embeddings(return_anndata=True)
+        emb_covars = self.get_covars_embeddings(cov, return_anndata=True)
 
         #Generate adata with all cov+pert latent vect combinations
         tmp_ad_list = []

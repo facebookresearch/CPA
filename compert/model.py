@@ -247,6 +247,8 @@ class ComPert(torch.nn.Module):
                 self.covariates_embeddings.append(
                     torch.nn.Embedding(num_covariate, self.hparams["dim"])
                 )
+            self.covariates_embeddings = torch.nn.Sequential(*self.covariates_embeddings)
+
         self.drug_embeddings = (torch.nn.Embedding( self.num_drugs, self.hparams["dim"]))
         # losses
         if self.loss_ae == "nb":

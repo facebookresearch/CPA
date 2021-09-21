@@ -1281,8 +1281,8 @@ class ComPertHistory:
 
         self.time = history['elapsed_time_min']
         self.losses_list = ['loss_reconstruction', 'loss_adv_drugs',\
-            'loss_adv_cell_types']
-        self.penalties_list = ['penalty_adv_drugs', 'penalty_adv_cell_types']
+            'loss_adv_covariates']
+        self.penalties_list = ['penalty_adv_drugs', 'penalty_adv_covariates']
 
         subset_keys = ['epoch'] + self.losses_list + self.penalties_list
 
