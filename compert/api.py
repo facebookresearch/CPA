@@ -15,17 +15,12 @@ from compert.train import prepare_compert, evaluate
 import time
 import copy
 import pprint
-import json
 from collections import defaultdict
 from tqdm import tqdm
 import os
 from compert.data import load_dataset_splits
+import itertools
 
-def pjson(s):
-    """
-    Prints a string in JSON format and flushes stdout
-    """
-    print(json.dumps(s), flush=True)
 
 class ComPertAPI:
     """
@@ -35,27 +30,59 @@ class ComPertAPI:
         self,
         dataset_path,
         covariate_keys=['cell_type'],
-        split_key='split', # necessary field for train, test, ood splits.
-        perturbation_key='condition', # necessary field for perturbations
-        dose_key='dose_val', # necessary field for dose. Fill in with dummy variable if dose is the same.         
-        doser_type='sigm', # non-linearity for doser function
-        save_dir='/tmp', # directory to save the model
-        decoder_activation='linear', # last layer of the decoder
-        loss_ae='gauss', # loss (currently only gaussian loss is supported)
-        patience=20, # patience for early stopping     
-        seed=0, # random seed
-        sweep_seeds=0,
+        split_key='split',
+        perturbation_key='condition',
+        dose_key='dose_val',
+        doser_type='sigm',
+        decoder_activation='linear',
+        loss_ae='gauss',
+        patience=20,  
+        seed=0,        
         pretrained=None,
         device='cpu',
-        hparams={},        
+        save_dir='/tmp', # directory to save the model
+        hparams={},
+        only_parameters=False
         ):
         """
         Parameters
         ----------
-        dataset : ComPertDataset
-            Full dataset.
-        model : ComPertModel
-            Pre-trained ComPert model.
+        dataset_path : str or `AnnData`
+            AnndData object or a full path to the file in the .h5ad format.
+        covariate_keys : list (default: ['cell_type'])
+            List of names in the .obs of AnnData that should be used as 
+            covariates. #TODO handel empty list.
+        split_key : str (default: 'split')
+            Name of the column in .obs of AnnData to use for splitting the 
+            dataset into train, test and validation.
+        perturbation_key : str (default: 'condition')
+            Name of the column in .obs of AnnData to use for perturbation 
+            variable. 
+        dose_key : str (default: 'dose_val')
+            Name of the column in .obs of AnnData to use for continious 
+            covariate. 
+        doser_type : str (default: 'sigm')
+            Type of the nonlinearity in the latent space for the continious 
+            covariate encoding: sigm, logsigm, mlp.        
+        decoder_activation : str (default: 'linear')
+            Last layer of the decoder.
+        loss_ae : str (default: 'gauss')
+            Loss (currently only gaussian loss is supported).
+        patience : int (default: 20)
+            Patience for early stopping.
+        seed : int (default: 20)
+            Random seed.
+        sweep_seeds : int (default: 0)
+            Random seed. #TODO check  if I can remove it.
+        pretrained : str (default: None)
+            Full path to the pretrained model.
+        save_dir : str (default: '/tmp/')
+            Folder to save the model.        
+        device : str (default: 'cpu')
+            Device for model computations. If None, will try to use CUDA if 
+            available.
+        hparams : dict (default: {})
+            Parameters for the architecture of the CPA model.
         """
         args=locals()
         del args['self']        
@@ -67,6 +94,9 @@ class ComPertAPI:
             args = self.used_args
             args['dataset_path'] = dataset_path
             args['covariate_keys'] = ['cell_type']
+            args['device'] = device
+            if only_parameters:
+                state=None
         else:
             state = None
         
@@ -76,16 +106,17 @@ class ComPertAPI:
         dataset = self.datasets['training']
         self.perturbation_key = dataset.perturbation_key
         self.dose_key = dataset.dose_key
-        self.covariate_keys = covariate_keys
+        self.covariate_keys = covariate_keys # very important, specifies the order of 
+        # covariates during training
         self.min_dose = dataset.drugs[dataset.drugs > 0].min().item()
         self.max_dose = dataset.drugs[dataset.drugs > 0].max().item()
 
         self.var_names = dataset.var_names
 
         self.unique_perts = list(dataset.perts_dict.keys())
-        self.unique_сovars = {}
+        self.unique_covars = {}
         for cov in dataset.covars_dict:
-            self.unique_сovars[cov] = list(dataset.covars_dict[cov].keys())
+            self.unique_covars[cov] = list(dataset.covars_dict[cov].keys())
         self.num_drugs = dataset.num_drugs
 
         self.perts_dict = dataset.perts_dict
@@ -118,7 +149,8 @@ class ComPertAPI:
                 num_points = len(np.where(self.datasets[k].pert_categories == pert)[0])
                 self.num_measured_points[k][pert] = num_points
 
-                cov, drug, dose = pert.split('_')
+                *cov_list, drug, dose = pert.split('_')
+                cov = '_'.join(cov_list)
                 if not('+' in dose):
                     dose = float(dose)
                 if cov in self.measured_points[k].keys():
@@ -140,22 +172,64 @@ class ComPertAPI:
                     self.measured_points['all'][cov][pert] =\
                         self.measured_points['ood'][cov][pert].copy()
 
-    def load(self, pretrained):
+        self._init_pert_embeddings()
+        self._init_covars_embeddings()
+
+    def load_from_old(self, pretrained):
+        """
+        Parameters
+        ----------
+        pretrained : str
+            Full path to the pretrained model.
+        """
         print(f'Loaded pretrained model from:\t{pretrained}')
         state, self.used_args, self.history =\
-            torch.load(pretrained, map_location=torch.device(device))
+            torch.load(pretrained, map_location=torch.device(self.args['device']))
+        self.model.load_state_dict(state_dict)
+
+    def load(self, pretrained):
+        """
+        Parameters
+        ----------
+        pretrained : str
+            Full path to the pretrained model.
+        """
+        print(f'Loaded pretrained model from:\t{pretrained}')
+        state, self.used_args, self.history =\
+            torch.load(pretrained, map_location=torch.device(self.args['device']))
         self.model.load_state_dict(state_dict)
 
     def train(
         self,
-        max_epochs=5, # maximum epochs for training
-        checkpoint_freq=20, # checkoint frequencty to save intermediate results        
-        max_minutes=60, # maximum computation time           
+        max_epochs=1,
+        checkpoint_freq=20,
+        max_minutes=60,       
+        filename='model.pt',
         batch_size=None,
         save_dir='./',
-        seed=0,
-        filename='model.pt'
+        seed=0        
         ):
+        """
+        Parameters
+        ----------
+        max_epochs : int (default: 1)
+            Maximum number epochs for training.
+        checkpoint_freq : int (default: 20)
+            Checkoint frequencty to save intermediate results.
+        max_minutes : int (default: 60)
+            Maximum computation time in minutes.
+        filename : str (default: 'model.pt')
+            Name of the file without the directoty path to save the model.
+            Name should be with .pt extension.
+        batch_size : int, optional (default: None)
+            Batch size for training. If None, uses default batch size specified
+            in hparams.
+        save_dir : str, optional (default: None)
+            Full path to the folder to save the model. If None, will use from 
+            the path specified during init.
+        seed : int (default: None)
+            Random seed. If None, uses default random seed specified during init.  
+        """
         args=locals()
         del args['self']
         # print('Training...')
@@ -166,6 +240,9 @@ class ComPertAPI:
             batch_size = self.model.hparams["batch_size"]
             args['batch_size'] = batch_size
 
+        if save_dir is None:
+            save_dir = self.args["save_dir"]
+
         self.datasets.update({
             "loader_tr": torch.utils.data.DataLoader(
                             self.datasets["training"],
@@ -175,6 +252,7 @@ class ComPertAPI:
 
         # pjson({"training_args": args})
         # pjson({"autoencoder_params": self.model.hparams})
+        self.model.train()
 
         start_time = time.time()
         pbar = tqdm(range(max_epochs), ncols=80)
@@ -230,7 +308,7 @@ class ComPertAPI:
                             "ellapsed_minutes": ellapsed_minutes
                         })
 
-                        pjson({"Stop epoch": epoch})
+                        print(f"Stop epoch: {epoch}")
                         break
 
         except KeyboardInterrupt:
@@ -239,11 +317,22 @@ class ComPertAPI:
         self.save(f"{save_dir}{filename}")
 
     def save(self, filename):
+        """
+        Parameters
+        ----------
+        filename : str
+            Full path to save pretrained model.
+        """
         torch.save(
             (self.model.state_dict(), self.args, self.model.history),
             filename)
-        pjson({"model_saved": "{}".format(filename)})
+        print("Model saved to: {filename}")
 
+    def _init_pert_embeddings(self):
+        dose = 1.0
+        self.emb_perts = self.model.compute_drug_embeddings_(dose*\
+            self.drug_ohe.to(self.model.device)).cpu().clone().detach().numpy()
+            
     def get_drug_embeddings(self, dose=1.0, return_anndata=True):
         """
         Parameters
@@ -258,14 +347,38 @@ class ComPertAPI:
         If return_anndata is True, returns anndata object. Otherwise, doesn't
         return anything. Always saves embeddding in self.emb_perts.
         """
-        self.emb_perts = self.model.compute_drug_embeddings_(dose*\
+        emb_perts = self.model.compute_drug_embeddings_(dose*\
             self.drug_ohe.to(self.model.device)).cpu().clone().detach().numpy()
+
         if return_anndata:
-            adata = sc.AnnData(self.emb_perts)
+            adata = sc.AnnData(emb_perts)
             adata.obs[self.perturbation_key] = self.unique_perts
             return adata
+    
+    def _init_covars_embeddings(self):
+        combo_list = []
+        for covars_key in self.covariate_keys:
+            combo_list.append(self.unique_covars[covars_key])
+            if self.emb_covars[covars_key] is None:
+                i_cov = self.covariate_keys.index(covars_key)
+                self.emb_covars[covars_key] = dict(zip(
+                    self.unique_covars[covars_key], 
+                    self.model.covariates_embeddings[i_cov](
+                    self.covars_ohe[covars_key].to(self.model.device).argmax(1)
+                    ).cpu().clone().detach().numpy()
+                ))
+        self.emb_covars_combined = {}
+        for combo in list(itertools.product(*combo_list)):
+            combo_name = '_'.join(combo)
+            for i, cov in enumerate(combo):
+                covars_key = self.covariate_keys[i]
+                if i == 0:
+                    emb = self.emb_covars[covars_key][cov]
+                else:
+                    emb += self.emb_covars[covars_key][cov]
+            self.emb_covars_combined[combo_name] = emb
 
-    def get_covars_embeddings(self, covars_key, return_anndata=True):
+    def get_covars_embeddings_combined(self, return_anndata=True):
         """
         Parameters
         ----------
@@ -276,20 +389,34 @@ class ComPertAPI:
         -------
         If return_anndata is True, returns anndata object. Otherwise, doesn't
         return anything. Always saves embeddding in self.emb_covars.
-        """
-        assert covars_key in self.covariate_keys
-
-        i_cov = self.covariate_keys.index(covars_key)
-        self.emb_covars[covars_key] = self.model.covariates_embeddings[i_cov](
-            self.covars_ohe[covars_key].to(self.model.device).argmax(1)
-            ).cpu().clone().detach().numpy()
+        """        
 
         if return_anndata:
-            adata = sc.AnnData(self.emb_covars[covars_key])
-            adata.obs[covars_key] = self.unique_сovars[covars_key]
+            adata = sc.AnnData(np.array(list(self.emb_covars_combined.values())))
+            adata.obs['covars'] = self.emb_covars_combined.keys()
             return adata
 
-    def get_drug_encoding_(self, drugs, doses=None):
+    def get_covars_embeddings(self, covars_tgt, return_anndata=True):
+        """
+        Parameters
+        ----------
+        covars_tgt : str 
+            Name of covariate for which to return AnnData
+        return_anndata : bool, optional (default: True)
+            Return embedding wrapped into anndata object.
+
+        Returns
+        -------
+        If return_anndata is True, returns anndata object. Otherwise, doesn't
+        return anything. Always saves embeddding in self.emb_covars.
+        """        
+
+        if return_anndata:
+            adata = sc.AnnData(np.array(list(self.emb_covars[covars_tgt].values())))
+            adata.obs[covars_tgt] = self.emb_covars[covars_tgt].keys()
+            return adata
+
+    def _get_drug_encoding(self, drugs, doses=None):
         """
         Parameters
         ----------
@@ -342,7 +469,7 @@ class ComPertAPI:
 
         drug_mix = np.zeros([len(drugs_list), self.num_drugs])
         for i, drug_combo in enumerate(drugs_list):
-            drug_mix[i] = self.get_drug_encoding_(drug_combo, doses=doses_list[i])
+            drug_mix[i] = self._get_drug_encoding(drug_combo, doses=doses_list[i])
 
         emb = self.model.compute_drug_embeddings_(torch.Tensor(drug_mix).to(
             self.model.device)).cpu().clone().detach().numpy()
@@ -457,7 +584,7 @@ class ComPertAPI:
 
         return df
 
-    def compute_comb_emb(self, cov, thrh=30):
+    def compute_comb_emb(self, thrh=30):
         """
         Generates an AnnData object containing all the latent vectors of the
         cov+dose*pert combinations seen during training.
@@ -471,13 +598,14 @@ class ComPertAPI:
         if self.seen_covars_perts['training'] is None:
             raise ValueError('Need to run parse_training_conditions() first!')
 
-        emb_covars = self.get_covars_embeddings(cov, return_anndata=True)
+        emb_covars = self.get_covars_embeddings_combined(return_anndata=True)
 
         #Generate adata with all cov+pert latent vect combinations
         tmp_ad_list = []
         for cov_pert in self.seen_covars_perts['training']:
             if self.num_measured_points['training'][cov_pert] > thrh:
-                cov_loop, pert_loop, dose_loop = cov_pert.split('_')
+                *cov_list, pert_loop, dose_loop = cov_pert.split('_')
+                cov_loop = '_'.join(cov_list)
                 emb_perts_loop = []
                 if '+' in pert_loop:
                     pert_loop_list = pert_loop.split('+')
@@ -489,7 +617,7 @@ class ComPertAPI:
 
                     emb_perts_loop = emb_perts_loop[0].concatenate(emb_perts_loop[1:])
                     X = (
-                        emb_covars.X[emb_covars.obs.cell_type == cov_loop]
+                        emb_covars.X[emb_covars.obs.covars == cov_loop]
                         + np.expand_dims(
                             emb_perts_loop.X[
                                 emb_perts_loop.obs.pert_dose.isin(
@@ -507,7 +635,7 @@ class ComPertAPI:
                 else:
                     emb_perts = self.get_drug_embeddings(dose=float(dose_loop))
                     X = (
-                        emb_covars.X[emb_covars.obs.cell_type == cov_loop]
+                        emb_covars.X[emb_covars.obs.covars == cov_loop]
                         + emb_perts.X[emb_perts.obs.condition == pert_loop]
                     )
                 tmp_ad = sc.AnnData(
@@ -532,8 +660,9 @@ class ComPertAPI:
 
         Parameters
         ----------
-        cov: string
-            Covariate (eg. cell_type) for the queried uncertainty
+        cov: dict
+            Provide a value for each covariate (eg. cell_type) as a dictionaty
+            for the queried uncertainty (e.g. cov_dict={'cell_type': 'A549'}).
         pert: string
             Perturbation for the queried uncertainty. In case of combinations the
             format has to be 'pertA+pertB'
@@ -556,23 +685,26 @@ class ComPertAPI:
         if self.comb_emb is None:
             self.compute_comb_emb(thrh=30)
 
-        covar_ohe = torch.Tensor(
-                self.covars_dict[cov]
-            ).to(self.model.device)
+        # covar_ohe = torch.Tensor(
+        #         self.covars_dict[cov]
+        #     ).to(self.model.device)
 
         drug_ohe = torch.Tensor(
-                self.get_drug_encoding_(
+                self._get_drug_encoding(
                     pert,
                     doses=dose
                 )
             ).to(self.model.device)
 
-        cov = covar_ohe.expand([1, self.covars_ohe.shape[1]])
+        # cov = covar_ohe.expand([1, self.covars_ohe.shape[1]])
         pert = drug_ohe.expand([1, self.drug_ohe.shape[1]])
 
         drug_emb = self.model.compute_drug_embeddings_(pert).detach().cpu().numpy()
-        cell_emb = self.model.cell_type_embeddings(cov.argmax(1)).detach().cpu().numpy()
-        cond_emb = drug_emb + cell_emb
+
+        cond_emb = drug_emb
+        for cov_key in cov:
+            cond_emb += self.emb_covars[cov_key][cov[cov_key]]
+            # self.model.cell_type_embeddings(cov.argmax(1)).detach().cpu().numpy()
 
         cos_dist = cosine_distances(cond_emb, self.comb_emb.X)[0]
         min_cos_dist = np.min(cos_dist)
@@ -589,7 +721,9 @@ class ComPertAPI:
     def predict(
         self,
         genes,
-        df,
+        cov,
+        pert,
+        dose,
         uncertainty=True,
         return_anndata=True,
         sample=False,
@@ -601,8 +735,16 @@ class ComPertAPI:
         ----------
         genes : np.array
             Control cells.
-        df : pd.DataFrame
-            Values for perturbations and covariates to generate.
+        cov: dict of lists
+            Provide a value for each covariate (eg. cell_type) as a dictionaty
+            for the queried uncertainty (e.g. cov_dict={'cell_type': 'A549'}).
+        pert: list
+            Perturbation for the queried uncertainty. In case of combinations the
+            format has to be 'pertA+pertB'
+        dose: list
+            String which contains the dose of the perturbation queried. In case
+            of combinations the format has to be 'doseA+doseB'
+
         uncertainty: bool (default: True)
             Compute uncertainties for the generated cells.
         return_anndata : bool, optional (default: True)
@@ -620,6 +762,14 @@ class ComPertAPI:
         conditions df_obs.
 
         """
+
+        assert len(dose) == len(pert), "Check the length of pert, dose"
+        for cov_key in cov:
+            assert len(cov[cov_key]) == len(pert), "Check the length of covariates"
+
+        df = pd.concat([pd.DataFrame({self.perturbation_key: pert, 
+            self.dose_key: dose}), pd.DataFrame(cov)], axis=1)
+
         self.model.eval()
         num = genes.shape[0]
         dim = genes.shape[1]
@@ -631,25 +781,29 @@ class ComPertAPI:
         gene_means_list = []
         gene_vars_list = []
         df_list = []
-
+        
         for i in range(len(df)):
-            comb_name = df.loc[i][self.perturbation_key]
-            dose_name = df.loc[i][self.dose_key]
-            covar_name = df.loc[i][self.covars_key]
-
-            covar_ohe = torch.Tensor(
-                self.covars_dict[covar_name]
-            ).to(self.model.device)
+            comb_name = pert[i]
+            dose_name = dose[i]
+            covar_name = {}
+            for cov_key in cov:
+                covar_name[cov_key] = cov[cov_key][i]            
 
             drug_ohe = torch.Tensor(
-                self.get_drug_encoding_(
+                self._get_drug_encoding(
                     comb_name,
                     doses=dose_name
                 )
             ).to(self.model.device)
 
             drugs = drug_ohe.expand([num, self.drug_ohe.shape[1]])
-            covars = covar_ohe.expand([num, self.covars_ohe.shape[1]])
+
+            covars = []
+            for cov_key in self.covariate_keys:
+                covar_ohe = torch.Tensor(
+                    self.covars_dict[cov_key][covar_name[cov_key]]
+                ).to(self.model.device)
+                covars.append(covar_ohe.expand([num, covar_ohe.shape[0]]).clone())
 
             gene_reconstructions = self.model.predict(
                 genes,
@@ -724,11 +878,11 @@ class ComPertAPI:
 
     def get_response(
         self,
-        datasets,
+        genes_control=None,
         doses=None,
         contvar_min=None,
         contvar_max=None,
-        n_points=50,
+        n_points=10,
         ncells_max=100,
         perturbations=None,
         control_name='test_control'
@@ -737,8 +891,9 @@ class ComPertAPI:
 
         Parameters
         ----------
-        dataset : CompPertDataset
-            The file location of the spreadsheet
+        genes_control : np.array (deafult: None)
+            Genes for which to predict values. If None, take from 'test_control'
+            split in datasets.
         doses : np.array (default: None)
             Doses values. If None, default values will be generated on a grid:
             n_points in range [contvar_min, contvar_max].
@@ -757,6 +912,9 @@ class ComPertAPI:
             of decoded response values of genes and average response.
         """
 
+        if genes_control is None:
+            genes_control = self.datasets['test_control'].genes
+
         if contvar_min is None:
             contvar_min = self.min_dose
         if contvar_max is None:
@@ -770,51 +928,45 @@ class ComPertAPI:
         if perturbations is None:
             perturbations = self.unique_perts
 
-        response = pd.DataFrame(columns=[self.covars_key,
+        response = pd.DataFrame(columns=self.covariate_keys + [
                                         self.perturbation_key,
                                         self.dose_key,
                                         'response'] + list(self.var_names))
 
+        if ncells_max < len(genes_control):
+            ncells_max = min(ncells_max, len(genes_control))
+            idx = torch.LongTensor(np.random.choice(range(len(genes_control)),\
+                ncells_max, replace=False))
+            genes_control = genes_control[idx]
+
         i = 0
-        for ict, ct in enumerate(self.unique_сovars):
-            # genes_control = dataset.genes[dataset.indices['control']]
-            genes_control =\
-                datasets[control_name].genes[datasets[control_name].cell_types_names ==\
-                     ct].clone().detach()
-            if len(genes_control) < 1:
-                print('Warning! Not enought control cells for this covariate.\
-                    Taking control cells from all covariates.')
-                genes_control = datasets[control_name].genes
-
-            if ncells_max < len(genes_control):
-                ncells_max = min(ncells_max, len(genes_control))
-                idx = torch.LongTensor(np.random.choice(range(len(genes_control)),\
-                    ncells_max, replace=False))
-                genes_control = genes_control[idx]
-
-            num, dim = genes_control.size(0), genes_control.size(1)
-            control_avg = genes_control.mean(dim=0).cpu().clone().detach().numpy().reshape(-1)
+        for covar_combo in self.emb_covars_combined:
+            cov_dict = {}
+            for i, cov_val in enumerate(covar_combo.split('_')):
+                cov_dict[self.covariate_keys[i]] = [cov_val]
 
             for idr, drug in enumerate(perturbations):
-                if not (drug in datasets[control_name].ctrl_name):
+                if not (drug in self.datasets[control_name].ctrl_name):
                     for dose in doses:
-                        df = pd.DataFrame(data={self.covars_key: [ct],
-                            self.perturbation_key: [drug], self.dose_key: [dose]})
+                        #TODO handle covars
 
                         gene_means, _, _ =\
-                            self.predict(genes_control.cpu().detach().numpy(),\
-                                df, return_anndata=False)
+                            self.predict(
+                                genes_control,\
+                                cov=cov_dict,
+                                pert=[drug],
+                                dose=[dose],
+                                return_anndata=False)
                         predicted_data = np.mean(gene_means, axis=0).reshape(-1)
 
-                        response.loc[i] = [ct, drug, dose,
-                            np.linalg.norm(predicted_data-control_avg)] +\
-                                list(predicted_data - control_avg)
+                        response.loc[i] = covar_combo.split('_') + [drug, dose,
+                            np.linalg.norm(predicted_data)] +\
+                                list(predicted_data)
                         i += 1
         return response
 
     def get_response_reference(
         self,
-        datasets,
         perturbations=None
         ):
 
@@ -835,55 +987,42 @@ class ComPertAPI:
         if perturbations is None:
             perturbations = self.unique_perts
 
-        reference_response_curve = pd.DataFrame(columns=[self.covars_key,
-                                                        self.perturbation_key,
-                                                        self.dose_key,
-                                                        'split',
-                                                        'num_cells',
-                                                        'response'] +\
-                                                        list(self.var_names))
+        reference_response_curve = pd.DataFrame(
+            columns=self.covariate_keys +\
+            [self.perturbation_key, self.dose_key, 
+            'split', 'num_cells', 'response'] +\
+            list(self.var_names))
 
-        dataset_ctr = datasets['training_control']
+        dataset_ctr = self.datasets['training_control']
 
         i = 0
         for split in ['training_treated', 'ood']:
-            dataset = datasets[split]
+            dataset = self.datasets[split]
             for pert in self.seen_covars_perts[split]:
-                ct, drug, dose_val = pert.split('_')
+                *covars, drug, dose_val = pert.split('_')
                 if drug in perturbations:
                     if not ('+' in dose_val):
                         dose = float(dose_val)
                     else:
                         dose = dose_val
 
-                    genes_control = dataset_ctr.genes[
-                        (dataset_ctr.cell_types_names == ct)].clone().detach()
-                    if len(genes_control) < 1:
-                        print('Warning! Not enought control cells for this covariate. \
-                            Taking control cells from all covariates.')
-                        genes_control = dataset_ctr.genes.clone().detach()
-
-                    num, dim = genes_control.size(0), genes_control.size(1)
-                    control_avg =\
-                        genes_control.mean(dim=0).cpu().clone().detach().numpy().reshape(-1)
-
                     idx = np.where((dataset.pert_categories == pert))[0]
 
                     if len(idx):
                         y_true = dataset.genes[idx, :].numpy().mean(axis=0)
-                        reference_response_curve.loc[i] = [ct, drug,
-                            dose, split, len(idx), np.linalg.norm(y_true - control_avg)] +\
-                                list(y_true - control_avg)
+                        reference_response_curve.loc[i] = covars + [drug,
+                            dose, split, len(idx), np.linalg.norm(y_true)] +\
+                                list(y_true)
 
                         i += 1
 
         return reference_response_curve
 
     def get_response2D(
-        self,
-        datasets,
+        self,        
         perturbations,
         covar,
+        genes_control=None,
         doses=None,
         contvar_min=None,
         contvar_max=None,
@@ -895,13 +1034,14 @@ class ComPertAPI:
         """Decoded dose response data frame.
 
         Parameters
-        ----------
-        dataset : CompPertDataset
-            The file location of the spreadsheet
+        ----------        
         perturbations : list
             List of length 2 of perturbations for dose response.
-        covar : str
+        covar : dict
             Name of a covariate for which to compute dose-response.
+        genes_control : np.array (deafult: None)
+            Genes for which to predict values. If None, take from 'test_control'
+            split in datasets.
         doses : np.array (default: None)
             Doses values. If None, default values will be generated on a grid:
             n_points in range [contvar_min, contvar_max].
@@ -932,20 +1072,12 @@ class ComPertAPI:
             doses = np.linspace(contvar_min, contvar_max, n_points)
 
         # genes_control = dataset.genes[dataset.indices['control']]
-        genes_control =\
-            datasets['test_control'].genes[datasets['test_control'].cell_types_names ==\
-                 covar].clone().detach()
-        if len(genes_control) < 1:
-            print('Warning! Not enought control cells for this covariate. \
-                Taking control cells from all covariates.')
-            genes_control = datasets['test_control'].genes
+        if genes_control is None:
+            genes_control = self.datasets['test_control'].genes
 
         ncells_max = min(ncells_max, len(genes_control))
         idx = torch.LongTensor(np.random.choice(range(len(genes_control)), ncells_max))
         genes_control = genes_control[idx]
-
-        num, dim = genes_control.size(0), genes_control.size(1)
-        control_avg = genes_control.mean(dim=0).cpu().clone().detach().numpy().reshape(-1)
 
         response = pd.DataFrame(columns=perturbations + ['response'] +\
             list(self.var_names))
@@ -958,19 +1090,19 @@ class ComPertAPI:
         i = 0
         if not (drug in ['Vehicle', 'EGF', 'unst', 'control', 'ctrl']):
             for dose in dose_vals:
-                df = pd.DataFrame(data={self.covars_key: [covar],
-                    self.perturbation_key: [drug+fixed_drugs],\
-                        self.dose_key: [dose+fixed_doses]})
-
-                gene_means, _, _ = self.predict(
-                    genes_control.cpu().detach().numpy(), df,
-                    return_anndata=False)
+                gene_means, _, _ =\
+                    self.predict(
+                        genes_control,\
+                        cov=covar,
+                        pert=[drug+fixed_drugs],
+                        dose=[dose+fixed_doses],
+                        return_anndata=False)
 
                 predicted_data = np.mean(gene_means, axis=0).reshape(-1)
 
                 response.loc[i] = dose_comb[i] +\
-                    [np.linalg.norm(control_avg - predicted_data)] +\
-                    list(predicted_data - control_avg)
+                    [np.linalg.norm(predicted_data)] +\
+                    list(predicted_data)
                 i += 1
 
         return response
@@ -1093,7 +1225,7 @@ class ComPertAPI:
         (_de) genes.
         """
         self.model.eval()
-        scores = pd.DataFrame(columns=[self.covars_key,
+        scores = pd.DataFrame(columns=self.covariate_keys + [
                                         self.perturbation_key,
                                         self.dose_key,
                                         'R2_mean', 'R2_mean_DE', 'R2_var',
@@ -1111,21 +1243,22 @@ class ComPertAPI:
                     np.array(dataset.de_genes[pert_category])))[0]
 
             idx = np.where(dataset.pert_categories == pert_category)[0]
+            *covars, pert, dose = pert_category.split('_')
+            cov_dict = {}
+            for i, cov_key in enumerate(self.covariate_keys):
+                cov_dict[cov_key] = [covars[i]]
 
             if len(idx) > 0:
-                emb_drugs = dataset.drugs[idx][0].view(
-                    1, -1).repeat(num, 1).clone()
-                emb_cts = dataset.cell_types[idx][0].view(
-                    1, -1).repeat(num, 1).clone()
-
-                genes_predict = self.model.predict(
-                    genes_control, emb_drugs, emb_cts).detach().cpu()
-
-                mean_predict = genes_predict[:, :dim]
-                var_predict = genes_predict[:, dim:]
+                mean_predict, var_predict, _ = self.predict(
+                    genes_control, 
+                    cov=cov_dict,
+                    pert=[pert],
+                    dose=[dose],
+                    return_anndata=False,
+                    sample=False,
+                    )
 
                 # estimate metrics only for reasonably-sized drug/cell-type combos
-
                 y_true = dataset.genes[idx, :].numpy()
 
                 # true means and variances

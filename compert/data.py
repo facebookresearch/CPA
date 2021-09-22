@@ -56,8 +56,6 @@ class Dataset:
         self.dose_key = dose_key
         self.genes = torch.Tensor(data.X.A)
         self.var_names = data.var_names
-        self.perturbation_key = perturbation_key
-        self.dose_key = dose_key
         if isinstance(covariate_keys, str):
             covariate_keys = [covariate_keys]
         self.covariate_keys = covariate_keys

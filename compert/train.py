@@ -239,6 +239,7 @@ def train_compert(args, return_model=False):
 
         for data in datasets["loader_tr"]:
             genes, drugs, covariates = data[0], data[1], data[2:]
+
             minibatch_training_stats = autoencoder.update(genes, drugs, covariates)
 
             for key, val in minibatch_training_stats.items():

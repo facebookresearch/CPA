@@ -39,7 +39,7 @@ class CompertVisuals:
                 compert,
                 fileprefix=None,
                 perts_palette=None,
-                сovars_palette=None,
+                covars_palette=None,
                 plot_params={'fontsize': None}
                 ):
         """
@@ -54,7 +54,7 @@ class CompertVisuals:
             Dictionary of colors for the embeddings of perturbations. Keys
             correspond to perturbations and values to their colors. If None,
             default dicitonary will be set up.
-        сovars_palette : dict (default: None)
+        covars_palette : dict (default: None)
             Dictionary of colors for the embeddings of covariates. Keys
             correspond to covariates and values to their colors. If None,
             default dicitonary will be set up.
@@ -64,11 +64,11 @@ class CompertVisuals:
 
         self.perturbation_key = compert.perturbation_key
         self.dose_key = compert.dose_key
-        self.covars_key = compert.covars_key
+        self.covariate_keys = compert.covariate_keys
         self.measured_points = compert.measured_points
 
         self.unique_perts = compert.unique_perts
-        self.unique_сovars = compert.unique_сovars
+        self.unique_covars = compert.unique_covars
 
         if perts_palette is None:
             self.perts_palette = dict(zip(self.unique_perts,
@@ -76,11 +76,13 @@ class CompertVisuals:
         else:
             self.perts_palette = perts_palette
 
-        if сovars_palette is None:
-            self.сovars_palette = dict(zip(self.unique_сovars,
-                get_palette(len(self.unique_сovars), palette_name='tab10')))
+        if covars_palette is None:
+            self.covars_palette = {}
+            for cov in self.unique_covars:
+                self.covars_palette[cov] = dict(zip(self.unique_covars[cov],
+                    get_palette(len(self.unique_covars[cov]), palette_name='tab10')))
         else:
-            self.сovars_palette = сovars_palette
+            self.covars_palette = covars_palette
 
         if plot_params['fontsize'] is None:
             self.fontsize = FONT_SIZE
@@ -135,9 +137,9 @@ class CompertVisuals:
             if kind == 'perturbations':
                 palette = self.perts_palette
                 labels = self.unique_perts
-            elif kind == 'covars':
-                palette = self.сovars_palette
-                labels = self.unique_сovars
+            elif kind in self.unique_covars:
+                palette = self.covars_palette[cov]
+                labels = self.unique_covars[cov]
 
         if len(emb) < 2:
             print(f'Embedding contains only {len(emb)} vectors. Not enough to plot.')
@@ -327,7 +329,7 @@ class CompertVisuals:
             dose_name = self.dose_key
 
         if var_name is None:
-            if len(self.unique_сovars) > 1:
+            if len(self.unique_covars) > 1:
                 var_name = self.covars_key
             else:
                 var_name = self.perturbation_key
@@ -336,7 +338,7 @@ class CompertVisuals:
             if var_name == self.perturbation_key:
                 palette = self.perts_palette
             elif var_name == self.covars_key:
-                palette = self.сovars_palette
+                palette = self.covars_palette
 
 
         plot_dose_response(df_response,
@@ -652,7 +654,7 @@ def plot_uncertainty_comb_dose(
     ------
     compert_api
         Api object for the model class.
-    cov : str
+    cov : dict
         Name of covariate.
     pert : str
         Name of the perturbation.
@@ -675,12 +677,13 @@ def plot_uncertainty_comb_dose(
         pd.DataFrame of uncertainty estimations.
     """
 
+    cov_name = '_'.join([cov[cov_key] for cov_key in compert_api.covariate_keys])
     df_list = []
     for i in np.round(np.linspace(0, 1, N), decimals=2):
         for j in np.round(np.linspace(0, 1, N), decimals=2):
             df_list.append(
                 {
-                    'cell_type' : cov,
+                    'covariates' : cov_name,
                     'condition' : pert+fixed_drugs,
                     'dose_val' : str(i) + '+' + str(j)+fixed_doses,
                 }
@@ -693,7 +696,7 @@ def plot_uncertainty_comb_dose(
     for i in range(df_pred.shape[0]):
         uncert_cos_, uncert_eucl_, closest_cond_cos_, closest_cond_eucl_ = (
             compert_api.compute_uncertainty(
-                cov=df_pred.iloc[i]['cell_type'],
+                cov=cov,
                 pert=df_pred.iloc[i]['condition'],
                 dose=df_pred.iloc[i]['dose_val']
             )
@@ -731,7 +734,7 @@ def plot_uncertainty_comb_dose(
     ax.set_xlabel(pert.split('+')[0], fontweight="bold")
     ax.set_ylabel(pert.split('+')[1], fontweight="bold")
     if title:
-        ax.set_title(cov)
+        ax.set_title(cov_name)
 
     if not (df_ref is None):
         sns.scatterplot(
@@ -747,7 +750,7 @@ def plot_uncertainty_comb_dose(
         ax.legend_.remove()
 
     if measured_points:
-        ticks = measured_points[cov][pert]
+        ticks = measured_points[cov_name][pert]
         xticks = [float(x.split('+')[0]) for x in ticks]
         yticks = [float(x.split('+')[1]) for x in ticks]
         ax.set_xticks(xticks)
@@ -822,23 +825,25 @@ def plot_uncertainty_dose(
             min_dose = 0
         N_val = np.round(np.linspace(min_dose, 1., N), decimals=3)
 
+    cov_name = '_'.join([cov[cov_key] for cov_key in compert_api.covariate_keys])
+
     for i in N_val:
         df_list.append(
-            {
-                'cell_type' : cov,
-                'condition' : pert,
-                'dose_val' : repr(i),
-            }
+            {'covariates': cov_name,
+            'condition': pert, 
+            'dose_val': repr(i)}
         )
+
     df_pred = pd.DataFrame(df_list)
     uncert_cos = []
     uncert_eucl = []
     closest_cond_cos = []
     closest_cond_eucl = []
+    
     for i in range(df_pred.shape[0]):
         uncert_cos_, uncert_eucl_, closest_cond_cos_, closest_cond_eucl_ = (
             compert_api.compute_uncertainty(
-                cov=df_pred.iloc[i]['cell_type'],
+                cov=cov,
                 pert=df_pred.iloc[i]['condition'],
                 dose=df_pred.iloc[i]['dose_val']
             )
@@ -859,11 +864,11 @@ def plot_uncertainty_dose(
     ax.plot(x, y)
     ax.set_xlabel(pert)
     ax.set_ylabel('Uncertainty')
-    ax.set_title(cov)
+    ax.set_title(cov_name)
     if log:
         ax.set_xscale('log')
     if measured_points:
-        ticks = measured_points[cov][pert]
+        ticks = measured_points[cov_name][pert]
         ax.set_xticks(ticks)
         ax.set_xticklabels(ticks, rotation=90)
     else:
