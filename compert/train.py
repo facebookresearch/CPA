@@ -185,6 +185,7 @@ def prepare_compert(args, state_dict=None):
         args["dose_key"],
         args["covariate_keys"],
         args["split_key"],
+        args["control"]        
     )
     # if args["gnn_model"] is not None:
     #     drug_embeddings = Drugemb(
@@ -208,7 +209,7 @@ def prepare_compert(args, state_dict=None):
         doser_type=args["doser_type"],
         patience=args["patience"],
         hparams=args["hparams"],
-        decoder_activation=args["decoder_activation"],
+        decoder_activation=args["decoder_activation"],        
     )
     if state_dict is not None:
         autoencoder.load_state_dict(state_dict)
@@ -232,6 +233,7 @@ def train_compert(args, return_model=False):
 
     pjson({"training_args": args})
     pjson({"autoencoder_params": autoencoder.hparams})
+    args['hparams'] = autoencoder.hparams
 
     start_time = time.time()
     for epoch in range(args["max_epochs"]):
@@ -303,6 +305,7 @@ def parse_arguments():
     # dataset arguments
     parser.add_argument('--dataset_path', type=str, required=True)
     parser.add_argument('--perturbation_key', type=str, default="condition")
+    parser.add_argument('--control', type=str, default=None)
     parser.add_argument('--dose_key', type=str, default="dose_val")
     parser.add_argument('--covariate_keys', nargs="*", type=str, default="cell_type")
     parser.add_argument('--split_key', type=str, default="split")

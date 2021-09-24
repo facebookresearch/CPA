@@ -1391,14 +1391,14 @@ class ComPertHistory:
         )
         axs[2, 0].set_title("perturbation disentanglement", fontweight="bold")
 
-        sns.lineplot(
-            data=self.disent[self.disent['epoch'] > epoch_min],
-            x="epoch",
-            y="covariate disentanglement",
-            legend=False,
-            ax=axs[2, 1]
-        )
-        axs[2, 1].set_title("covariate disentanglement", fontweight="bold")
+        # sns.lineplot(
+        #     data=self.disent[self.disent['epoch'] > epoch_min],
+        #     x="epoch",
+        #     y="covariate disentanglement",
+        #     legend=False,
+        #     ax=axs[2, 1]
+        # )
+        # axs[2, 1].set_title("covariate disentanglement", fontweight="bold")
 
         plt.tight_layout()
 

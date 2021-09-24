@@ -2,6 +2,14 @@
 
 import scanpy as sc
 import pandas as pd
+import numpy as np
+import warnings
+warnings.filterwarnings("ignore")
+
+import sys
+if not sys.warnoptions:
+    warnings.simplefilter("ignore")
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 def rank_genes_groups_by_cov(
     adata,
@@ -73,6 +81,96 @@ def rank_genes_groups_by_cov(
 
         #subset adata to cells belonging to a covariate category
         adata_cov = adata[adata.obs[covariate]==cov_cat]
+
+        #compute DEGs
+        sc.tl.rank_genes_groups(
+            adata_cov,
+            groupby=groupby,
+            reference=control_group_cov,
+            rankby_abs=rankby_abs,
+            n_genes=n_genes
+        )
+
+        #add entries to dictionary of gene sets
+        de_genes = pd.DataFrame(adata_cov.uns['rank_genes_groups']['names'])
+        for group in de_genes:
+            gene_dict[group] = de_genes[group].tolist()
+
+    adata.uns[key_added] = gene_dict
+
+    if return_dict:
+        return gene_dict
+
+
+def rank_genes_groups(
+    adata,
+    groupby,
+    pool_doses=False,
+    n_genes=50,
+    rankby_abs=True,
+    key_added='rank_genes_groups_cov',
+    return_dict=False,
+):
+
+    """
+    Function that generates a list of differentially expressed genes computed
+    separately for each covariate category, and using the respective control
+    cells as reference.
+
+    Usage example:
+
+    rank_genes_groups_by_cov(
+        adata,
+        groupby='cov_product_dose',
+        covariate_key='cell_type',
+        control_group='Vehicle_0'
+    )
+
+    Parameters
+    ----------
+    adata : AnnData
+        AnnData dataset
+    groupby : str
+        Obs column that defines the groups, should be
+        cartesian product of covariate_perturbation_cont_var,
+        it is important that this format is followed.
+    control_group : str
+        String that defines the control group in the groupby obs
+    covariate : str
+        Obs column that defines the main covariate by which we
+        want to separate DEG computation (eg. cell type, species, etc.)
+    n_genes : int (default: 50)
+        Number of DEGs to include in the lists
+    rankby_abs : bool (default: True)
+        If True, rank genes by absolute values of the score, thus including
+        top downregulated genes in the top N genes. If False, the ranking will
+        have only upregulated genes at the top.
+    key_added : str (default: 'rank_genes_groups_cov')
+        Key used when adding the dictionary to adata.uns
+    return_dict : str (default: False)
+        Signals whether to return the dictionary or not
+
+    Returns
+    -------
+    Adds the DEG dictionary to adata.uns
+
+    If return_dict is True returns:
+    gene_dict : dict
+        Dictionary where groups are stored as keys, and the list of DEGs
+        are the corresponding values
+
+    """
+
+    covars_comb = []
+    for i in range(len(adata)):
+        cov = '_'.join(adata.obs['cov_drug_dose_name'].values[i].split('_')[:-2])
+        covars_comb.append(cov)
+    adata.obs['covars_comb'] = covars_comb
+
+    gene_dict = {}
+    for cov_cat in np.unique(adata.obs['covars_comb'].values):
+        adata_cov = adata[adata.obs['covars_comb']==cov_cat]
+        control_group_cov = adata_cov[adata_cov.obs['control'] == 1].obs[groupby].values[0]
 
         #compute DEGs
         sc.tl.rank_genes_groups(

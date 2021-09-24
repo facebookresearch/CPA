@@ -33,16 +33,17 @@ class ComPertAPI:
         split_key='split',
         perturbation_key='condition',
         dose_key='dose_val',
-        doser_type='sigm',
+        doser_type='logsigm',
         decoder_activation='linear',
         loss_ae='gauss',
         patience=20,  
         seed=0,        
         pretrained=None,
         device='cpu',
-        save_dir='/tmp', # directory to save the model
+        save_dir='/tmp/', # directory to save the model
         hparams={},
-        only_parameters=False
+        only_parameters=False,
+        control=None
         ):
         """
         Parameters
@@ -61,7 +62,7 @@ class ComPertAPI:
         dose_key : str (default: 'dose_val')
             Name of the column in .obs of AnnData to use for continious 
             covariate. 
-        doser_type : str (default: 'sigm')
+        doser_type : str (default: 'logsigm')
             Type of the nonlinearity in the latent space for the continious 
             covariate encoding: sigm, logsigm, mlp.        
         decoder_activation : str (default: 'linear')
@@ -87,21 +88,26 @@ class ComPertAPI:
         args=locals()
         del args['self']        
 
-        if not (pretrained is None):
-            print(f'Loaded pretrained model from:\t{pretrained}')
+        if not (pretrained is None):            
             state, self.used_args, self.history =\
                 torch.load(pretrained, map_location=torch.device(device))
-            args = self.used_args
-            args['dataset_path'] = dataset_path
-            args['covariate_keys'] = ['cell_type']
-            args['device'] = device
+            self.args = self.used_args
+            self.args['dataset_path'] = dataset_path
+            self.args['covariate_keys'] = covariate_keys
+            self.args['device'] = device
+            self.args['control'] = control
             if only_parameters:
                 state=None
+                print(f'Loaded ARGS of the model from:\t{pretrained}')
+            else:
+                print(f'Loaded pretrained model from:\t{pretrained}')
         else:
-            state = None
-        
-        self.args = args
-        self.model, self.datasets = prepare_compert(args, state_dict=state)
+            state = None   
+            self.args = args
+
+        self.model, self.datasets = prepare_compert(self.args, state_dict=state)
+        self.args['save_dir'] = save_dir        
+        self.args['hparams'] = self.model.hparams        
 
         dataset = self.datasets['training']
         self.perturbation_key = dataset.perturbation_key
@@ -187,13 +193,16 @@ class ComPertAPI:
             torch.load(pretrained, map_location=torch.device(self.args['device']))
         self.model.load_state_dict(state_dict)
 
+    def print_args(self):
+        pprint.pprint(self.args)
+
     def load(self, pretrained):
         """
         Parameters
         ----------
         pretrained : str
             Full path to the pretrained model.
-        """
+        """ #TODO fix compatibility
         print(f'Loaded pretrained model from:\t{pretrained}')
         state, self.used_args, self.history =\
             torch.load(pretrained, map_location=torch.device(self.args['device']))
@@ -206,7 +215,7 @@ class ComPertAPI:
         max_minutes=60,       
         filename='model.pt',
         batch_size=None,
-        save_dir='./',
+        save_dir=None,
         seed=0        
         ):
         """
@@ -234,7 +243,7 @@ class ComPertAPI:
         del args['self']
         # print('Training...')
         # pprint.pprint(args)
-        self.args.update(args)
+        # 
 
         if batch_size is None:
             batch_size = self.model.hparams["batch_size"]
@@ -242,6 +251,7 @@ class ComPertAPI:
 
         if save_dir is None:
             save_dir = self.args["save_dir"]
+        print('Results will be saved to the folder:', save_dir)
 
         self.datasets.update({
             "loader_tr": torch.utils.data.DataLoader(
@@ -253,6 +263,7 @@ class ComPertAPI:
         # pjson({"training_args": args})
         # pjson({"autoencoder_params": self.model.hparams})
         self.model.train()
+        self.args.update(args)
 
         start_time = time.time()
         pbar = tqdm(range(max_epochs), ncols=80)
@@ -326,7 +337,7 @@ class ComPertAPI:
         torch.save(
             (self.model.state_dict(), self.args, self.model.history),
             filename)
-        print("Model saved to: {filename}")
+        print(f"Model saved to: {filename}")
 
     def _init_pert_embeddings(self):
         dose = 1.0
