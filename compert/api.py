@@ -100,12 +100,15 @@ class ComPertAPI:
                 state=None
                 print(f'Loaded ARGS of the model from:\t{pretrained}')
             else:
-                print(f'Loaded pretrained model from:\t{pretrained}')
+                print(f'Loaded pretrained model from:\t{pretrained}')                
         else:
             state = None   
             self.args = args
 
+        # pprint.pprint(self.args)
         self.model, self.datasets = prepare_compert(self.args, state_dict=state)
+        if not (pretrained is None) and (not only_parameters):
+            self.model.history = self.history
         self.args['save_dir'] = save_dir        
         self.args['hparams'] = self.model.hparams        
 
@@ -119,7 +122,8 @@ class ComPertAPI:
 
         self.var_names = dataset.var_names
 
-        self.unique_perts = list(dataset.perts_dict.keys())
+        self.unique_perts = list(dataset.perts_dict.keys())        
+
         self.unique_covars = {}
         for cov in dataset.covars_dict:
             self.unique_covars[cov] = list(dataset.covars_dict[cov].keys())
@@ -192,6 +196,7 @@ class ComPertAPI:
         state, self.used_args, self.history =\
             torch.load(pretrained, map_location=torch.device(self.args['device']))
         self.model.load_state_dict(state_dict)
+        self.model.history = self.history
 
     def print_args(self):
         pprint.pprint(self.args)

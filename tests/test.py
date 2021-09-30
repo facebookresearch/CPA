@@ -15,6 +15,7 @@ def sim_adata():
     adata.obs['condition'].values[:100] = 'control'
     adata.obs['condition'].values[350:400] = 'control'
     adata.obs['condition'].values[100:200] = 'drugB'    
+    adata.obs['split'] = 'train'
 
     return adata
 
@@ -26,7 +27,6 @@ if __name__ == "__main__":
         pretrained=None,
         perturbation_key='condition',
         dose_key = 'dose_val',
-        # covariate_keys=[],
         covariate_keys=['batch'],
         hparams={},
         device='cuda:0',

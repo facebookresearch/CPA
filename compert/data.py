@@ -43,10 +43,12 @@ def check_adata(adata, special_fields):
         if sf in adata.obs:
             flag = 0
             for el in adata.obs[sf].values:
-                if '_' in el:
+                if '_' in str(el):
                     flag += 1
             if flag:
-                print(f"Special characters ('_') were found in: {sf}. They will be replaced with '-'. Be careful, it may lead to errors downstream.")
+                print(f"WARNING. Special characters ('_') were found in: '{sf}'.",
+                "They will be replaced with '-'.",
+                "Be careful, it may lead to errors downstream.")
                 adata.obs[sf] = [s.replace("_", "-") for s in adata.obs[sf].values]
                 replaced = True
                 
@@ -67,10 +69,7 @@ class Dataset:
         control=None
     ):
         if type(data) == str:
-            data = sc.read(data)
-        
-        data, replaced =\
-            check_adata(data, [perturbation_key, dose_key] + covariate_keys)
+            data = sc.read(data)        
 
         self.perturbation_key = perturbation_key
         self.dose_key = dose_key
@@ -87,15 +86,20 @@ class Dataset:
         if isinstance(covariate_keys, str):
             covariate_keys = [covariate_keys]
         self.covariate_keys = covariate_keys        
+
+        data, replaced =\
+            check_adata(data, [perturbation_key, dose_key] + covariate_keys)
         
         for cov in covariate_keys:
             if not (cov in data.obs): 
                 data.obs[cov] = 'unknown'
 
-        if not (split_key is data.obs):
-            print('Performing automatic train-test split with 0.25 samples for test')
-            data.obs[split_key] = 'train'
+        if split_key in data.obs:
+            pass
+        else:
+            print('Performing automatic train-test split with 0.25 ratio.')
             from sklearn.model_selection import train_test_split
+            data.obs[split_key] = 'train'
             idx = list(range(len(data)))
             idx_train, idx_test = train_test_split(
                 data.obs_names, test_size=0.25, random_state=42)
@@ -105,7 +109,9 @@ class Dataset:
         if 'control' in data.obs:
             self.ctrl = data.obs["control"].values
         else:
-            assert not (control is None), "please provide name of control condition"
+            print(f'Assigning control values for {control}')
+            assert_msg = "Please provide a name for control condition."
+            assert not (control is None), assert_msg
             data.obs["control"] = 0            
             if dose_key in data.obs:           
                 pert, dose = control.split('_')
@@ -118,7 +124,8 @@ class Dataset:
                     (data.obs[perturbation_key] == pert), 'control'] = 1
 
             self.ctrl = data.obs["control"].values
-            assert sum(self.ctrl), 'Cells to assign as control not found! Please check the name of control variable.'
+            assert_msg = 'Cells to assign as control not found! Please check the name of control variable.'
+            assert sum(self.ctrl), assert_msg
             print(f'Assigned {sum(self.ctrl)} control cells')
 
         if perturbation_key is not None:
@@ -127,7 +134,8 @@ class Dataset:
                     f"A 'dose_key' is required when provided a 'perturbation_key'({perturbation_key})."
                 )
             if not (dose_key in data.obs):
-                print(f'Creating a default entrance for dose_key {dose_key}: 1.0 per perturbation')
+                print(f'Creating a default entrance for dose_key {dose_key}:',
+                    '1.0 per perturbation')
                 dose_val = []
                 for i in range(len(data)):
                     pert = data.obs[perturbation_key].values[i].split('+')
@@ -135,6 +143,7 @@ class Dataset:
                 data.obs[dose_key] = dose_val
 
             if not ('cov_drug_dose_name' in data.obs) or replaced:
+                print("Creating 'cov_drug_dose_name' field.")
                 cov_drug_dose_name = []
                 for i in range(len(data)):
                     comb_name = ''
@@ -145,7 +154,7 @@ class Dataset:
                 data.obs['cov_drug_dose_name'] = cov_drug_dose_name            
 
             if not ('rank_genes_groups_cov' in data.uns) or replaced:
-                print('Ranking genes for DE genes')
+                print('Ranking genes for DE genes.')
                 rank_genes_groups(data, groupby='cov_drug_dose_name')
 
             self.pert_categories = np.array(data.obs["cov_drug_dose_name"].values)
@@ -158,7 +167,7 @@ class Dataset:
             drugs_names_unique = set()
             for d in self.drugs_names:
                 [drugs_names_unique.add(i) for i in d.split("+")]
-            self.drugs_names_unique = np.array(list(drugs_names_unique))
+            self.drugs_names_unique = np.array(list(drugs_names_unique))            
 
             # save encoder for a comparison with Mo's model
             # later we need to remove this part
