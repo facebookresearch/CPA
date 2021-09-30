@@ -110,7 +110,11 @@ class ComPertAPI:
         if not (pretrained is None) and (not only_parameters):
             self.model.history = self.history
         self.args['save_dir'] = save_dir        
-        self.args['hparams'] = self.model.hparams        
+        self.args['hparams'] = self.model.hparams    
+
+        if not (save_dir is None):
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
 
         dataset = self.datasets['training']
         self.perturbation_key = dataset.perturbation_key
@@ -180,10 +184,7 @@ class ComPertAPI:
                     self.measured_points['ood'][cov][pert].copy()
                 else:
                     self.measured_points['all'][cov][pert] =\
-                        self.measured_points['ood'][cov][pert].copy()
-
-        self._init_pert_embeddings()
-        self._init_covars_embeddings()
+                        self.measured_points['ood'][cov][pert].copy()        
 
     def load_from_old(self, pretrained):
         """
@@ -253,7 +254,8 @@ class ComPertAPI:
         if batch_size is None:
             batch_size = self.model.hparams["batch_size"]
             args['batch_size'] = batch_size
-
+            self.args['batch_size'] = batch_size
+            
         if save_dir is None:
             save_dir = self.args["save_dir"]
         print('Results will be saved to the folder:', save_dir)
@@ -268,7 +270,6 @@ class ComPertAPI:
         # pjson({"training_args": args})
         # pjson({"autoencoder_params": self.model.hparams})
         self.model.train()
-        self.args.update(args)
 
         start_time = time.time()
         pbar = tqdm(range(max_epochs), ncols=80)
@@ -302,7 +303,7 @@ class ComPertAPI:
                 pbar.set_description(
                     f"Rec: {epoch_training_stats['loss_reconstruction']:.4f}, "+
                     f"AdvPert: {epoch_training_stats['loss_adv_drugs']:.2f}, "+
-                    f"AdvCov: {epoch_training_stats['loss_adv_cell_types']:.2f}")
+                    f"AdvCov: {epoch_training_stats['loss_adv_covariates']:.2f}")
 
                 if (epoch % checkpoint_freq) == 0 or stop:
                     evaluation_stats = evaluate(self.model, self.datasets)
@@ -342,6 +343,7 @@ class ComPertAPI:
         torch.save(
             (self.model.state_dict(), self.args, self.model.history),
             filename)
+        self.history = self.model.history
         print(f"Model saved to: {filename}")
 
     def _init_pert_embeddings(self):
@@ -363,6 +365,8 @@ class ComPertAPI:
         If return_anndata is True, returns anndata object. Otherwise, doesn't
         return anything. Always saves embeddding in self.emb_perts.
         """
+        self._init_pert_embeddings()
+
         emb_perts = self.model.compute_drug_embeddings_(dose*\
             self.drug_ohe.to(self.model.device)).cpu().clone().detach().numpy()
 
@@ -426,7 +430,8 @@ class ComPertAPI:
         If return_anndata is True, returns anndata object. Otherwise, doesn't
         return anything. Always saves embeddding in self.emb_covars.
         """        
-
+        self._init_covars_embeddings()
+        
         if return_anndata:
             adata = sc.AnnData(np.array(list(self.emb_covars[covars_tgt].values())))
             adata.obs[covars_tgt] = self.emb_covars[covars_tgt].keys()
