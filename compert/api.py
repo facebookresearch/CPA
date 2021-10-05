@@ -937,7 +937,7 @@ class ComPertAPI:
             genes_control = self.datasets['test_control'].genes
 
         if contvar_min is None:
-            contvar_min = self.min_dose
+            contvar_min = 0
         if contvar_max is None:
             contvar_max = self.max_dose
 
@@ -1037,6 +1037,8 @@ class ComPertAPI:
 
                         i += 1
 
+        reference_response_curve =\
+            reference_response_curve.replace('training_treated', 'train')
         return reference_response_curve
 
     def get_response2D(
@@ -1294,6 +1296,7 @@ class ComPertAPI:
 
                 mean_score_de = r2_score(yt_m[de_idx], yp_m[de_idx])
                 var_score_de = r2_score(yt_v[de_idx], yp_v[de_idx])
+                
                 scores.loc[icond] = pert_category.split('_') +\
                     [mean_score, mean_score_de, var_score, var_score_de, len(idx)]
                 icond += 1
