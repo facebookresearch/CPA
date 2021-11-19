@@ -79,7 +79,7 @@ def get_best_plots(model_name, path="./results/plots"):
     autoencoder, datasets = prepare_cpa(args, state_dict=state)
 
     # Setting a variable for the API
-    cpa_api = CPAAPI(datasets, autoencoder)
+    cpa_api = API(datasets, autoencoder)
 
     # Setting up a variabel for automatic plotting. The plots also could be
     # used separately.

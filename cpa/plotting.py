@@ -13,7 +13,7 @@ import scanpy as sc
 import seaborn as sns
 import torch
 from adjustText import adjust_text
-from cpa.api import CPAAPI, get_reference_from_combo
+from cpa.api import API, get_reference_from_combo
 from sklearn.decomposition import KernelPCA
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
@@ -45,7 +45,7 @@ class CompertVisuals:
         Parameters
         ----------
         cpa : CompPertAPI
-            Variable from CPAAPI class.
+            Variable from API class.
         fileprefix : str, optional (default: None)
             Prefix (with path) to the filename to save all embeddings in a
             standartized manner. If None, embeddings are not saved to file.

@@ -72,9 +72,9 @@ Run `python ./scripts/run_one_epoch.sh` to perfrom automatic testing for one epo
 Currently you can access the documentation via `help` function in IPython. For example:
 
 ```python
-from cpa.api import CPAAPI
+from cpa.api import API
 
-help(CPAAPI)
+help(API)
 
 from cpa.plotting import CompertVisuals
 

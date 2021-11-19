@@ -24,7 +24,7 @@ def sim_adata():
 if __name__ == "__main__":
     adata = sim_adata()
 
-    cpa_api = cpa.api.CPAAPI(
+    cpa_api = cpa.api.API(
         adata,
         pretrained=None,
         perturbation_key="condition",

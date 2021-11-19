@@ -21,7 +21,7 @@ from sklearn.metrics.pairwise import cosine_distances, euclidean_distances
 from tqdm import tqdm
 
 
-class CPAAPI:
+class API:
     """
     API for CPA model to make it compatible with scanpy.
     """
