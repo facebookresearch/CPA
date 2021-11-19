@@ -9,7 +9,7 @@ from collections import defaultdict
 import numpy as np
 import torch
 from cpa.data import load_dataset_splits
-from cpa.model import ComPert
+from cpa.model import CPA
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, make_scorer, r2_score
 from sklearn.model_selection import cross_val_score
@@ -26,7 +26,7 @@ def pjson(s):
 
 def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
     """
-    Given a ComPert model, this function measures the correlation between
+    Given a CPA model, this function measures the correlation between
     its latent space and 1) a dataset's drug vectors 2) a datasets covariate
     vectors.
 
@@ -69,7 +69,7 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
 
 def evaluate_r2(autoencoder, dataset, genes_control):
     """
-    Measures different quality metrics about an ComPert `autoencoder`, when
+    Measures different quality metrics about an CPA `autoencoder`, when
     tasked to translate some `genes_control` into each of the drug/covariates
     combinations described in `dataset`.
 
@@ -196,7 +196,7 @@ def prepare_cpa(args, state_dict=None):
     # else:
     #     drug_embeddings = None
 
-    autoencoder = ComPert(
+    autoencoder = CPA(
         datasets["training"].num_genes,
         datasets["training"].num_drugs,
         datasets["training"].num_covariates,
@@ -216,7 +216,7 @@ def prepare_cpa(args, state_dict=None):
 
 def train_cpa(args, return_model=False):
     """
-    Trains a ComPert autoencoder
+    Trains a CPA autoencoder
     """
 
     autoencoder, datasets = prepare_cpa(args)
@@ -322,7 +322,7 @@ def parse_arguments():
     parser.add_argument("--doser_type", type=str, default="sigm")
     parser.add_argument("--decoder_activation", type=str, default="linear")
 
-    # ComPert arguments (see set_hparams_() in cpa.model.ComPert)
+    # CPA arguments (see set_hparams_() in cpa.model.CPA)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--hparams", type=str, default="")
 

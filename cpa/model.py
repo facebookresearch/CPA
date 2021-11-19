@@ -158,9 +158,9 @@ class GeneralizedSigmoid(torch.nn.Module):
             return x
 
 
-class ComPert(torch.nn.Module):
+class CPA(torch.nn.Module):
     """
-    Our main module, the ComPert autoencoder
+    Our main module, the CPA autoencoder
     """
 
     def __init__(
@@ -176,7 +176,7 @@ class ComPert(torch.nn.Module):
         decoder_activation="linear",
         hparams="",
     ):
-        super(ComPert, self).__init__()
+        super(CPA, self).__init__()
         # set generic attributes
         self.num_genes = num_genes
         self.num_drugs = num_drugs
@@ -461,7 +461,7 @@ class ComPert(torch.nn.Module):
 
     def update(self, genes, drugs, covariates):
         """
-        Update ComPert's parameters given a minibatch of genes, drugs, and
+        Update CPA's parameters given a minibatch of genes, drugs, and
         cell types.
         """
         genes, drugs, covariates = self.move_inputs_(genes, drugs, covariates)
@@ -550,7 +550,7 @@ class ComPert(torch.nn.Module):
     @classmethod
     def defaults(self):
         """
-        Returns the list of default hyper-parameters for ComPert
+        Returns the list of default hyper-parameters for CPA
         """
 
         return self.set_hparams_(self, 0, "")

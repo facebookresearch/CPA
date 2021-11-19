@@ -13,7 +13,7 @@ import scanpy as sc
 import seaborn as sns
 import torch
 from adjustText import adjust_text
-from cpa.api import ComPertAPI, get_reference_from_combo
+from cpa.api import CPAAPI, get_reference_from_combo
 from sklearn.decomposition import KernelPCA
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
@@ -45,7 +45,7 @@ class CompertVisuals:
         Parameters
         ----------
         cpa : CompPertAPI
-            Variable from ComPertAPI class.
+            Variable from CPAAPI class.
         fileprefix : str, optional (default: None)
             Prefix (with path) to the filename to save all embeddings in a
             standartized manner. If None, embeddings are not saved to file.
@@ -1280,9 +1280,9 @@ def arrange_history(history):
     print(history.keys())
 
 
-class ComPertHistory:
+class CPAHistory:
     """
-    A wrapper for automatic plotting history of ComPert model..
+    A wrapper for automatic plotting history of CPA model..
     """
 
     def __init__(self, history, fileprefix=None):
@@ -1290,7 +1290,7 @@ class ComPertHistory:
         Parameters
         ----------
         history : dict
-            Dictionary of ComPert history.
+            Dictionary of CPA history.
         fileprefix : str, optional (default: None)
             Prefix (with path) to the filename to save all embeddings in a
             standartized manner. If None, embeddings are not saved to file.

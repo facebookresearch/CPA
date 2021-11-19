@@ -21,9 +21,9 @@ from sklearn.metrics.pairwise import cosine_distances, euclidean_distances
 from tqdm import tqdm
 
 
-class ComPertAPI:
+class CPAAPI:
     """
-    API for ComPert model to make it compatible with scanpy.
+    API for CPA model to make it compatible with scanpy.
     """
 
     def __init__(
@@ -1319,7 +1319,7 @@ class ComPertAPI:
 
     def evaluate_r2(self, dataset, genes_control):
         """
-        Measures different quality metrics about an ComPert `autoencoder`, when
+        Measures different quality metrics about an CPA `autoencoder`, when
         tasked to translate some `genes_control` into each of the drug/cell_type
         combinations described in `dataset`.
 

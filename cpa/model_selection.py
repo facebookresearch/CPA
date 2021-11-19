@@ -17,7 +17,7 @@ import scanpy as sc
 import torch
 from cpa.api import *
 from cpa.data import Dataset, load_dataset_splits
-from cpa.model import ComPert
+from cpa.model import CPA
 from cpa.plotting import *
 from cpa.train import evaluate, prepare_cpa
 
@@ -70,7 +70,7 @@ def get_best_plots(model_name, path="./results/plots"):
     state, args, history = torch.load(model_name, map_location=torch.device("cpu"))
 
     # Plot training history
-    pretty_history = ComPertHistory(history, fileprefix=plots_prefix)
+    pretty_history = CPAHistory(history, fileprefix=plots_prefix)
     pretty_history.print_time()
     pretty_history.plot_losses()
     pretty_history.plot_metrics(epoch_min=100)
@@ -79,7 +79,7 @@ def get_best_plots(model_name, path="./results/plots"):
     autoencoder, datasets = prepare_cpa(args, state_dict=state)
 
     # Setting a variable for the API
-    cpa_api = ComPertAPI(datasets, autoencoder)
+    cpa_api = CPAAPI(datasets, autoencoder)
 
     # Setting up a variabel for automatic plotting. The plots also could be
     # used separately.
