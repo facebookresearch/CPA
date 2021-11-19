@@ -13,7 +13,8 @@ if __name__ == "__main__":
         gpus_per_node=1,
         array_parallelism=512,
         cpus_per_task=4,
-        partition="learnfair")
+        partition="learnfair",
+    )
 
     commands = []
     for seed in range(args["sweep_seeds"]):

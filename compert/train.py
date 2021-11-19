@@ -41,12 +41,9 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
     latent_basal = latent_basal.detach().cpu().numpy()
 
     if nonlinear:
-        clf = KNeighborsClassifier(
-            n_neighbors=int(np.sqrt(len(latent_basal))))
+        clf = KNeighborsClassifier(n_neighbors=int(np.sqrt(len(latent_basal))))
     else:
-        clf = LogisticRegression(solver="liblinear",
-                                 multi_class="auto",
-                                 max_iter=10000)
+        clf = LogisticRegression(solver="liblinear", multi_class="auto", max_iter=10000)
 
     pert_scores, cov_scores = 0, []
 
@@ -89,8 +86,8 @@ def evaluate_r2(autoencoder, dataset, genes_control):
     for pert_category in np.unique(dataset.pert_categories):
         # pert_category category contains: 'celltype_perturbation_dose' info
         de_idx = np.where(
-            dataset.var_names.isin(
-                np.array(dataset.de_genes[pert_category])))[0]
+            dataset.var_names.isin(np.array(dataset.de_genes[pert_category]))
+        )[0]
 
         idx = np.where(dataset.pert_categories == pert_category)[0]
 
@@ -125,8 +122,10 @@ def evaluate_r2(autoencoder, dataset, genes_control):
             mean_score_de.append(r2_score(yt_m[de_idx], yp_m[de_idx]))
             var_score_de.append(r2_score(yt_v[de_idx], yp_v[de_idx]))
 
-    return [np.mean(s) if len(s) else -1
-            for s in [mean_score, mean_score_de, var_score, var_score_de]]
+    return [
+        np.mean(s) if len(s) else -1
+        for s in [mean_score, mean_score_de, var_score, var_score_de]
+    ]
 
 
 def evaluate(autoencoder, datasets):
@@ -183,7 +182,7 @@ def prepare_compert(args, state_dict=None):
         args["dose_key"],
         args["covariate_keys"],
         args["split_key"],
-        args["control"]        
+        args["control"],
     )
     # if args["gnn_model"] is not None:
     #     drug_embeddings = Drugemb(
@@ -207,7 +206,7 @@ def prepare_compert(args, state_dict=None):
         doser_type=args["doser_type"],
         patience=args["patience"],
         hparams=args["hparams"],
-        decoder_activation=args["decoder_activation"],        
+        decoder_activation=args["decoder_activation"],
     )
     if state_dict is not None:
         autoencoder.load_state_dict(state_dict)
@@ -222,16 +221,19 @@ def train_compert(args, return_model=False):
 
     autoencoder, datasets = prepare_compert(args)
 
-    datasets.update({
-        "loader_tr": torch.utils.data.DataLoader(
-                        datasets["training"],
-                        batch_size=autoencoder.hparams["batch_size"],
-                        shuffle=True)
-    })
+    datasets.update(
+        {
+            "loader_tr": torch.utils.data.DataLoader(
+                datasets["training"],
+                batch_size=autoencoder.hparams["batch_size"],
+                shuffle=True,
+            )
+        }
+    )
 
     pjson({"training_args": args})
     pjson({"autoencoder_params": autoencoder.hparams})
-    args['hparams'] = autoencoder.hparams
+    args["hparams"] = autoencoder.hparams
 
     start_time = time.time()
     for epoch in range(args["max_epochs"]):
@@ -250,16 +252,17 @@ def train_compert(args, return_model=False):
             if not (key in autoencoder.history.keys()):
                 autoencoder.history[key] = []
             autoencoder.history[key].append(epoch_training_stats[key])
-        autoencoder.history['epoch'].append(epoch)
+        autoencoder.history["epoch"].append(epoch)
 
         ellapsed_minutes = (time.time() - start_time) / 60
-        autoencoder.history['elapsed_time_min'] = ellapsed_minutes
+        autoencoder.history["elapsed_time_min"] = ellapsed_minutes
 
         # decay learning rate if necessary
         # also check stopping condition: patience ran out OR
         # time ran out OR max epochs achieved
-        stop = ellapsed_minutes > args["max_minutes"] or \
-            (epoch == args["max_epochs"] - 1)
+        stop = ellapsed_minutes > args["max_minutes"] or (
+            epoch == args["max_epochs"] - 1
+        )
 
         if (epoch % args["checkpoint_freq"]) == 0 or stop:
             evaluation_stats = evaluate(autoencoder, datasets)
@@ -267,25 +270,33 @@ def train_compert(args, return_model=False):
                 if not (key in autoencoder.history.keys()):
                     autoencoder.history[key] = []
                 autoencoder.history[key].append(val)
-            autoencoder.history['stats_epoch'].append(epoch)
+            autoencoder.history["stats_epoch"].append(epoch)
 
-            pjson({
-                "epoch": epoch,
-                "training_stats": epoch_training_stats,
-                "evaluation_stats": evaluation_stats,
-                "ellapsed_minutes": ellapsed_minutes
-            })
+            pjson(
+                {
+                    "epoch": epoch,
+                    "training_stats": epoch_training_stats,
+                    "evaluation_stats": evaluation_stats,
+                    "ellapsed_minutes": ellapsed_minutes,
+                }
+            )
 
             torch.save(
                 (autoencoder.state_dict(), args, autoencoder.history),
                 os.path.join(
                     args["save_dir"],
-                    "model_seed={}_epoch={}.pt".format(args["seed"], epoch)))
+                    "model_seed={}_epoch={}.pt".format(args["seed"], epoch),
+                ),
+            )
 
-            pjson({"model_saved": "model_seed={}_epoch={}.pt\n".format(
-                args["seed"], epoch)})
-            stop = stop or autoencoder.early_stopping(
-                np.mean(evaluation_stats["test"]))
+            pjson(
+                {
+                    "model_saved": "model_seed={}_epoch={}.pt\n".format(
+                        args["seed"], epoch
+                    )
+                }
+            )
+            stop = stop or autoencoder.early_stopping(np.mean(evaluation_stats["test"]))
             if stop:
                 pjson({"early_stop": epoch})
                 break
@@ -299,32 +310,32 @@ def parse_arguments():
     Read arguments if this script is called from a terminal.
     """
 
-    parser = argparse.ArgumentParser(description='Drug combinations.')
+    parser = argparse.ArgumentParser(description="Drug combinations.")
     # dataset arguments
-    parser.add_argument('--dataset_path', type=str, required=True)
-    parser.add_argument('--perturbation_key', type=str, default="condition")
-    parser.add_argument('--control', type=str, default=None)
-    parser.add_argument('--dose_key', type=str, default="dose_val")
-    parser.add_argument('--covariate_keys', nargs="*", type=str, default="cell_type")
-    parser.add_argument('--split_key', type=str, default="split")
-    parser.add_argument('--loss_ae', type=str, default='gauss')
-    parser.add_argument('--doser_type', type=str, default='sigm')
-    parser.add_argument('--decoder_activation', type=str, default='linear')
+    parser.add_argument("--dataset_path", type=str, required=True)
+    parser.add_argument("--perturbation_key", type=str, default="condition")
+    parser.add_argument("--control", type=str, default=None)
+    parser.add_argument("--dose_key", type=str, default="dose_val")
+    parser.add_argument("--covariate_keys", nargs="*", type=str, default="cell_type")
+    parser.add_argument("--split_key", type=str, default="split")
+    parser.add_argument("--loss_ae", type=str, default="gauss")
+    parser.add_argument("--doser_type", type=str, default="sigm")
+    parser.add_argument("--decoder_activation", type=str, default="linear")
 
     # ComPert arguments (see set_hparams_() in compert.model.ComPert)
-    parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--hparams', type=str, default="")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--hparams", type=str, default="")
 
     # training arguments
-    parser.add_argument('--max_epochs', type=int, default=2000)
-    parser.add_argument('--max_minutes', type=int, default=300)
-    parser.add_argument('--patience', type=int, default=20)
-    parser.add_argument('--checkpoint_freq', type=int, default=20)
+    parser.add_argument("--max_epochs", type=int, default=2000)
+    parser.add_argument("--max_minutes", type=int, default=300)
+    parser.add_argument("--patience", type=int, default=20)
+    parser.add_argument("--checkpoint_freq", type=int, default=20)
 
     # output folder
-    parser.add_argument('--save_dir', type=str, required=True)
+    parser.add_argument("--save_dir", type=str, required=True)
     # number of trials when executing compert.sweep
-    parser.add_argument('--sweep_seeds', type=int, default=200)
+    parser.add_argument("--sweep_seeds", type=int, default=200)
     return dict(vars(parser.parse_args()))
 
 

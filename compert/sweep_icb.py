@@ -14,7 +14,7 @@ if __name__ == "__main__":
         array_parallelism=60,
         cpus_per_task=4,
         partition="gpu_p",
-        additional_parameters={'qos':'gpu'}
+        additional_parameters={"qos": "gpu"},
     )
 
     commands = []

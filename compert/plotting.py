@@ -19,11 +19,11 @@ from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
 
 FONT_SIZE = 13
-font = {'size': FONT_SIZE}
+font = {"size": FONT_SIZE}
 
-matplotlib.rc('font', **font)
-matplotlib.rc('ytick', labelsize=FONT_SIZE)
-matplotlib.rc('xtick', labelsize=FONT_SIZE)
+matplotlib.rc("font", **font)
+matplotlib.rc("ytick", labelsize=FONT_SIZE)
+matplotlib.rc("xtick", labelsize=FONT_SIZE)
 
 
 class CompertVisuals:
@@ -32,13 +32,15 @@ class CompertVisuals:
     curve. Sets up prefix for all files and default dictionaries for atomic
     perturbations and cell types.
     """
-    def __init__(self,
-                compert,
-                fileprefix=None,
-                perts_palette=None,
-                covars_palette=None,
-                plot_params={'fontsize': None}
-                ):
+
+    def __init__(
+        self,
+        compert,
+        fileprefix=None,
+        perts_palette=None,
+        covars_palette=None,
+        plot_params={"fontsize": None},
+    ):
         """
         Parameters
         ----------
@@ -68,34 +70,40 @@ class CompertVisuals:
         self.unique_covars = compert.unique_covars
 
         if perts_palette is None:
-            self.perts_palette = dict(zip(self.unique_perts,
-                get_palette(len(self.unique_perts))))
+            self.perts_palette = dict(
+                zip(self.unique_perts, get_palette(len(self.unique_perts)))
+            )
         else:
             self.perts_palette = perts_palette
 
         if covars_palette is None:
             self.covars_palette = {}
             for cov in self.unique_covars:
-                self.covars_palette[cov] = dict(zip(self.unique_covars[cov],
-                    get_palette(len(self.unique_covars[cov]), palette_name='tab10')))
+                self.covars_palette[cov] = dict(
+                    zip(
+                        self.unique_covars[cov],
+                        get_palette(len(self.unique_covars[cov]), palette_name="tab10"),
+                    )
+                )
         else:
             self.covars_palette = covars_palette
 
-        if plot_params['fontsize'] is None:
+        if plot_params["fontsize"] is None:
             self.fontsize = FONT_SIZE
         else:
-            self.fontsize = plot_params['fontsize']
+            self.fontsize = plot_params["fontsize"]
 
-    def plot_latent_embeddings(self,
-                                emb,
-                                titlename='Example',
-                                kind='perturbations',
-                                palette=None,
-                                labels=None,
-                                dimred='KernelPCA',
-                                filename=None,
-                                show_text=True
-                                ):
+    def plot_latent_embeddings(
+        self,
+        emb,
+        titlename="Example",
+        kind="perturbations",
+        palette=None,
+        labels=None,
+        dimred="KernelPCA",
+        filename=None,
+        show_text=True,
+    ):
         """
         Parameters
         ----------
@@ -125,13 +133,13 @@ class CompertVisuals:
                 filename = None
                 file_name_similarity = None
             else:
-                filename = f'{self.fileprefix}_emebdding.png'
-                file_name_similarity=f'{self.fileprefix}_emebdding_similarity.png'
+                filename = f"{self.fileprefix}_emebdding.png"
+                file_name_similarity = f"{self.fileprefix}_emebdding_similarity.png"
         else:
-            file_name_similarity = filename.split('.')[0] + '_similarity.png'
+            file_name_similarity = filename.split(".")[0] + "_similarity.png"
 
-        if (labels is None):
-            if kind == 'perturbations':
+        if labels is None:
+            if kind == "perturbations":
                 palette = self.perts_palette
                 labels = self.unique_perts
             elif kind in self.unique_covars:
@@ -139,44 +147,46 @@ class CompertVisuals:
                 labels = self.unique_covars[cov]
 
         if len(emb) < 2:
-            print(f'Embedding contains only {len(emb)} vectors. Not enough to plot.')
+            print(f"Embedding contains only {len(emb)} vectors. Not enough to plot.")
         else:
             plot_embedding(
-                    fast_dimred(emb, method=dimred),
-                    labels,
-                    show_lines=True,
-                    show_text=show_text,
-                    col_dict=palette,
-                    title=titlename,
-                    file_name=filename,
-                    fontsize=self.fontsize
-                    )
+                fast_dimred(emb, method=dimred),
+                labels,
+                show_lines=True,
+                show_text=show_text,
+                col_dict=palette,
+                title=titlename,
+                file_name=filename,
+                fontsize=self.fontsize,
+            )
 
             plot_similarity(
-                    emb,
-                    labels,
-                    col_dict=palette,
-                    fontsize=self.fontsize,
-                    file_name=file_name_similarity
-                    )
+                emb,
+                labels,
+                col_dict=palette,
+                fontsize=self.fontsize,
+                file_name=file_name_similarity,
+            )
 
-    def plot_contvar_response2D(self,
-                            df_response2D,
-                            df_ref=None,
-                            levels=15,
-                            figsize=(4,4),
-                            xlims=(0, 1.03),
-                            ylims=(0, 1.03),
-                            palette="coolwarm",
-                            response_name='response',
-                            title_name=None,
-                            fontsize=None,
-                            postfix='',
-                            filename=None,
-                            alpha=0.4,
-                            sizes=(40, 160),
-                            logdose=False,
-                            file_format='png'):
+    def plot_contvar_response2D(
+        self,
+        df_response2D,
+        df_ref=None,
+        levels=15,
+        figsize=(4, 4),
+        xlims=(0, 1.03),
+        ylims=(0, 1.03),
+        palette="coolwarm",
+        response_name="response",
+        title_name=None,
+        fontsize=None,
+        postfix="",
+        filename=None,
+        alpha=0.4,
+        sizes=(40, 160),
+        logdose=False,
+        file_format="png",
+    ):
 
         """
         Parameters
@@ -209,7 +219,7 @@ class CompertVisuals:
         sns.set_style("white")
 
         if (filename is None) and not (self.fileprefix is None):
-            filename = f'{self.fileprefix}_{postfix}response2D.png'
+            filename = f"{self.fileprefix}_{postfix}response2D.png"
         if fontsize is None:
             fontsize = self.fontsize
 
@@ -232,7 +242,7 @@ class CompertVisuals:
 
         fig, ax = plt.subplots(figsize=figsize)
 
-        CS = ax.contourf(X,Y,Z, cmap=palette, levels=levels, alpha=alpha)
+        CS = ax.contourf(X, Y, Z, cmap=palette, levels=levels, alpha=alpha)
         CS = ax.contour(X, Y, Z, levels=15, cmap=palette)
         ax.clabel(CS, inline=1, fontsize=fontsize)
         ax.set(xlim=(0, 1), ylim=(0, 1))
@@ -250,14 +260,16 @@ class CompertVisuals:
 
         if not (df_ref is None):
             sns.scatterplot(
-            x=x_name,
-            y=y_name,
-            hue='split',
-            size='num_cells',
-            sizes=sizes,
-            alpha=1.,
-            palette={'train': '#000000', 'training': '#000000', 'ood': '#e41a1c'},
-            data=df_ref, ax=ax)
+                x=x_name,
+                y=y_name,
+                hue="split",
+                size="num_cells",
+                sizes=sizes,
+                alpha=1.0,
+                palette={"train": "#000000", "training": "#000000", "ood": "#e41a1c"},
+                data=df_ref,
+                ax=ax,
+            )
             ax.legend_.remove()
 
         ax.set_title(title_name, fontweight="bold", fontsize=fontsize)
@@ -266,23 +278,23 @@ class CompertVisuals:
         if filename:
             save_to_file(fig, filename)
 
-
-    def plot_contvar_response(self,
-                            df_response,
-                            response_name='response',
-                            var_name=None,
-                            df_ref=None,
-                            palette=None,
-                            title_name=None,
-                            postfix='',
-                            xlabelname=None,
-                            filename=None,
-                            logdose=False,
-                            fontsize=None,
-                            measured_points=None,
-                            bbox=(1.35, 1.),
-                            figsize=(7., 4.)
-                            ):
+    def plot_contvar_response(
+        self,
+        df_response,
+        response_name="response",
+        var_name=None,
+        df_ref=None,
+        palette=None,
+        title_name=None,
+        postfix="",
+        xlabelname=None,
+        filename=None,
+        logdose=False,
+        fontsize=None,
+        measured_points=None,
+        bbox=(1.35, 1.0),
+        figsize=(7.0, 4.0),
+    ):
         """
         Parameters
         ----------
@@ -312,13 +324,13 @@ class CompertVisuals:
             Size of output figure
         """
         if (filename is None) and not (self.fileprefix is None):
-            filename = f'{self.fileprefix}_{postfix}response.png'
+            filename = f"{self.fileprefix}_{postfix}response.png"
 
         if fontsize is None:
             fontsize = self.fontsize
 
         if logdose:
-            dose_name = f'log10-{self.dose_key}'
+            dose_name = f"log10-{self.dose_key}"
             df_response[dose_name] = log10_with0(df_response[self.dose_key].values)
             if not (df_ref is None):
                 df_ref[dose_name] = log10_with0(df_ref[self.dose_key].values)
@@ -337,25 +349,26 @@ class CompertVisuals:
             elif var_name == self.covars_key:
                 palette = self.covars_palette
 
-
-        plot_dose_response(df_response,
-                       dose_name,
-                       var_name,
-                       xlabelname=xlabelname,
-                       df_ref=df_ref,
-                       response_name=response_name,
-                       title_name=title_name,
-                       use_ref_response=(not (df_ref is None)),
-                       col_dict=palette,
-                       plot_vertical=False,
-                       f1=figsize[0],
-                       f2=figsize[1],
-                       fname=filename,
-                       logscale=measured_points,
-                       measured_points=measured_points,
-                       bbox=bbox,
-                       fontsize=fontsize,
-                       format='png')
+        plot_dose_response(
+            df_response,
+            dose_name,
+            var_name,
+            xlabelname=xlabelname,
+            df_ref=df_ref,
+            response_name=response_name,
+            title_name=title_name,
+            use_ref_response=(not (df_ref is None)),
+            col_dict=palette,
+            plot_vertical=False,
+            f1=figsize[0],
+            f2=figsize[1],
+            fname=filename,
+            logscale=measured_points,
+            measured_points=measured_points,
+            bbox=bbox,
+            fontsize=fontsize,
+            format="png",
+        )
 
     def plot_scatter(
         self,
@@ -369,16 +382,17 @@ class CompertVisuals:
         title=None,
         palette=None,
         filename=None,
-        alpha=.75,
+        alpha=0.75,
         sizes=(30, 90),
         text_dict=None,
-        postfix='',
-        fontsize=14):
+        postfix="",
+        fontsize=14,
+    ):
 
         sns.set_style("white")
 
         if (filename is None) and not (self.fileprefix is None):
-            filename = f'{self.fileprefix}_scatter{postfix}.png'
+            filename = f"{self.fileprefix}_scatter{postfix}.png"
 
         if fontsize is None:
             fontsize = self.fontsize
@@ -386,15 +400,16 @@ class CompertVisuals:
         fig = plt.figure(figsize=figsize)
         ax = plt.gca()
         sns.scatterplot(
-                    x=x_axis,
-                    y=y_axis,
-                    hue=hue,
-                    style=style,
-                    size=size,
-                    sizes=sizes,
-                    alpha=alpha,
-                    palette=palette,
-                    data=df)
+            x=x_axis,
+            y=y_axis,
+            hue=hue,
+            style=style,
+            size=size,
+            sizes=sizes,
+            alpha=alpha,
+            palette=palette,
+            data=df,
+        )
 
         ax.legend_.remove()
         ax.set_xlabel(x_axis, fontsize=fontsize)
@@ -410,14 +425,12 @@ class CompertVisuals:
                         text_dict[label][0],
                         text_dict[label][1],
                         label,
-                        fontsize=fontsize
+                        fontsize=fontsize,
                     )
                 )
 
             adjust_text(
-                texts,
-                arrowprops=dict(arrowstyle='-', color='black', lw=0.1),
-                ax=ax
+                texts, arrowprops=dict(arrowstyle="-", color="black", lw=0.1), ax=ax
             )
 
         plt.tight_layout()
@@ -428,18 +441,16 @@ class CompertVisuals:
 
 def log10_with0(x):
     mx = np.min(x[x > 0])
-    x[x == 0] = mx/10
+    x[x == 0] = mx / 10
     return np.log10(x)
 
-def get_palette(
-        n_colors,
-        palette_name='Set1'
-    ):
+
+def get_palette(n_colors, palette_name="Set1"):
 
     try:
         palette = sns.color_palette(palette_name)
     except:
-        print('Palette not found. Using default palette tab10')
+        print("Palette not found. Using default palette tab10")
         palette = sns.color_palette()
     while len(palette) < n_colors:
         palette += palette
@@ -447,7 +458,7 @@ def get_palette(
     return palette
 
 
-def fast_dimred(emb, method='KernelPCA'):
+def fast_dimred(emb, method="KernelPCA"):
     """
     Takes high dimensional embeddings and produces a 2-dimensional representation
     for plotting.
@@ -459,38 +470,41 @@ def fast_dimred(emb, method='KernelPCA'):
     """
     if method is None:
         return emb[:, :2]
-    elif method == 'KernelPCA':
+    elif method == "KernelPCA":
         similarity_matrix = cosine_similarity(emb)
         np.fill_diagonal(similarity_matrix, 1.0)
-        X = KernelPCA(n_components=2, kernel="precomputed")\
-            .fit_transform(similarity_matrix)
+        X = KernelPCA(n_components=2, kernel="precomputed").fit_transform(
+            similarity_matrix
+        )
     else:
         raise NotImplementedError
 
     return X
 
 
-def plot_dose_response(df,
-                       contvar_key,
-                       perturbation_key,
-                       df_ref=None,
-                       response_name='response',
-                       use_ref_response=False,
-                       palette=None,
-                       col_dict=None,
-                       fontsize=8,
-                       measured_points=None,
-                       interpolate=True,
-                       f1=7,
-                       f2=3.,
-                       bbox=(1.35, 1.),
-                       ref_name='origin',
-                       title_name='None',
-                       plot_vertical=True,
-                       fname=None,
-                       logscale=None,
-                       xlabelname=None,
-                       format='png'):
+def plot_dose_response(
+    df,
+    contvar_key,
+    perturbation_key,
+    df_ref=None,
+    response_name="response",
+    use_ref_response=False,
+    palette=None,
+    col_dict=None,
+    fontsize=8,
+    measured_points=None,
+    interpolate=True,
+    f1=7,
+    f2=3.0,
+    bbox=(1.35, 1.0),
+    ref_name="origin",
+    title_name="None",
+    plot_vertical=True,
+    fname=None,
+    logscale=None,
+    xlabelname=None,
+    format="png",
+):
 
     """Plotting decoding of the response with respect to dose.
 
@@ -530,8 +544,8 @@ def plot_dose_response(df,
     """
     sns.set_style("white")
     if use_ref_response and not (df_ref is None):
-        df[ref_name] = 'predictions'
-        df_ref[ref_name] = 'observations'
+        df[ref_name] = "predictions"
+        df_ref[ref_name] = "observations"
         if interpolate:
             df_plt = pd.concat([df, df_ref])
         else:
@@ -545,53 +559,53 @@ def plot_dose_response(df,
         current_palette = get_palette(len(list(atomic_drugs)))
 
     if col_dict is None:
-        col_dict = dict(
-            zip(
-                list(atomic_drugs),
-                current_palette
-            )
-        )
+        col_dict = dict(zip(list(atomic_drugs), current_palette))
 
     fig = plt.figure(figsize=(f1, f2))
     ax = plt.gca()
 
     if use_ref_response:
         sns.lineplot(
-                x=contvar_key,
-                y=response_name,
-                palette=col_dict,
-                hue=perturbation_key,
-                style=ref_name,
-                dashes=[(1, 0), (2, 1)],
-                legend='full',
-                style_order=['predictions', 'observations'],
-             data=df_plt, ax=ax)
+            x=contvar_key,
+            y=response_name,
+            palette=col_dict,
+            hue=perturbation_key,
+            style=ref_name,
+            dashes=[(1, 0), (2, 1)],
+            legend="full",
+            style_order=["predictions", "observations"],
+            data=df_plt,
+            ax=ax,
+        )
 
-        df_ref = df_ref.replace('training_treated', 'train')
+        df_ref = df_ref.replace("training_treated", "train")
         sns.scatterplot(
             x=contvar_key,
             y=response_name,
-            hue='split',
-            size='num_cells',
+            hue="split",
+            size="num_cells",
             sizes=(10, 100),
-            alpha=1.,
-            palette={'train': '#000000', 'training': '#000000', 'ood': '#e41a1c'},
-            data=df_ref, ax=ax)
+            alpha=1.0,
+            palette={"train": "#000000", "training": "#000000", "ood": "#e41a1c"},
+            data=df_ref,
+            ax=ax,
+        )
 
         ax.legend_.remove()
     else:
-        sns.lineplot(x=contvar_key, y=response_name,
-                palette=col_dict,
-                hue=perturbation_key,
-             data=df_plt, ax=ax)
-        ax.legend(
-            loc='upper right',
-            bbox_to_anchor=bbox,
-            fontsize=fontsize)
+        sns.lineplot(
+            x=contvar_key,
+            y=response_name,
+            palette=col_dict,
+            hue=perturbation_key,
+            data=df_plt,
+            ax=ax,
+        )
+        ax.legend(loc="upper right", bbox_to_anchor=bbox, fontsize=fontsize)
 
     if not (title_name is None):
-        ax.set_title(title_name, fontsize=fontsize, fontweight='bold')
-    ax.grid('off')
+        ax.set_title(title_name, fontsize=fontsize, fontweight="bold")
+    ax.grid("off")
 
     if xlabelname is None:
         ax.set_xlabel(contvar_key, fontsize=fontsize)
@@ -608,7 +622,7 @@ def plot_dose_response(df,
         ax.set_xticklabels(logscale, rotation=90)
 
     if not (df_ref is None):
-        atomic_drugs=np.unique(df_ref[perturbation_key].values)
+        atomic_drugs = np.unique(df_ref[perturbation_key].values)
         for drug in atomic_drugs:
             x = df_ref[df_ref[perturbation_key] == drug][contvar_key].values
             m1 = np.min(df[df[perturbation_key] == drug][response_name].values)
@@ -616,33 +630,40 @@ def plot_dose_response(df,
 
             if plot_vertical:
                 for x_dot in x:
-                    ax.plot([x_dot, x_dot], [m1, m2], ':', color='black',
-                        linewidth=.5, alpha=0.5)
+                    ax.plot(
+                        [x_dot, x_dot],
+                        [m1, m2],
+                        ":",
+                        color="black",
+                        linewidth=0.5,
+                        alpha=0.5,
+                    )
 
     fig.tight_layout()
     if fname:
-        plt.savefig(f'{fname}.{format}', format=format)
+        plt.savefig(f"{fname}.{format}", format=format)
 
     return fig
+
 
 def plot_uncertainty_comb_dose(
     compert_api,
     cov,
     pert,
     N=11,
-    metric='cosine',
+    metric="cosine",
     measured_points=None,
-    cond_key='condition',
+    cond_key="condition",
     vmin=None,
     vmax=None,
     sizes=(40, 160),
     df_ref=None,
     xlims=(0, 1.03),
     ylims=(0, 1.03),
-    fixed_drugs='',
-    fixed_doses='',
+    fixed_drugs="",
+    fixed_doses="",
     title=True,
-    filename=None
+    filename=None,
 ):
     """Plotting uncertainty for a single perturbation at a dose range for a
     particular covariate.
@@ -674,15 +695,15 @@ def plot_uncertainty_comb_dose(
         pd.DataFrame of uncertainty estimations.
     """
 
-    cov_name = '_'.join([cov[cov_key] for cov_key in compert_api.covariate_keys])
+    cov_name = "_".join([cov[cov_key] for cov_key in compert_api.covariate_keys])
     df_list = []
     for i in np.round(np.linspace(0, 1, N), decimals=2):
         for j in np.round(np.linspace(0, 1, N), decimals=2):
             df_list.append(
                 {
-                    'covariates' : cov_name,
-                    'condition' : pert+fixed_drugs,
-                    'dose_val' : str(i) + '+' + str(j)+fixed_doses,
+                    "covariates": cov_name,
+                    "condition": pert + fixed_drugs,
+                    "dose_val": str(i) + "+" + str(j) + fixed_doses,
                 }
             )
     df_pred = pd.DataFrame(df_list)
@@ -691,65 +712,54 @@ def plot_uncertainty_comb_dose(
     closest_cond_cos = []
     closest_cond_eucl = []
     for i in range(df_pred.shape[0]):
-        uncert_cos_, uncert_eucl_, closest_cond_cos_, closest_cond_eucl_ = (
-            compert_api.compute_uncertainty(
-                cov=cov,
-                pert=df_pred.iloc[i]['condition'],
-                dose=df_pred.iloc[i]['dose_val']
-            )
+        (
+            uncert_cos_,
+            uncert_eucl_,
+            closest_cond_cos_,
+            closest_cond_eucl_,
+        ) = compert_api.compute_uncertainty(
+            cov=cov, pert=df_pred.iloc[i]["condition"], dose=df_pred.iloc[i]["dose_val"]
         )
         uncert_cos.append(uncert_cos_)
         uncert_eucl.append(uncert_eucl_)
         closest_cond_cos.append(closest_cond_cos_)
         closest_cond_eucl.append(closest_cond_eucl_)
 
-    df_pred['uncertainty_cosine'] = uncert_cos
-    df_pred['uncertainty_eucl'] = uncert_eucl
-    df_pred['closest_cond_cos'] = closest_cond_cos
-    df_pred['closest_cond_eucl'] = closest_cond_eucl
-    doses = df_pred.dose_val.apply(lambda x: x.split('+'))
-    X = np.array(
-        doses
-        .apply(lambda x: x[0])
-        .astype(float)
-    ).reshape(N, N)
-    Y = np.array(
-        doses
-        .apply(lambda x: x[1])
-        .astype(float)
-    ).reshape(N, N)
-    Z = np.array(
-        df_pred[f'uncertainty_{metric}']
-        .values
-        .astype(float)
-    ).reshape(N, N)
+    df_pred["uncertainty_cosine"] = uncert_cos
+    df_pred["uncertainty_eucl"] = uncert_eucl
+    df_pred["closest_cond_cos"] = closest_cond_cos
+    df_pred["closest_cond_eucl"] = closest_cond_eucl
+    doses = df_pred.dose_val.apply(lambda x: x.split("+"))
+    X = np.array(doses.apply(lambda x: x[0]).astype(float)).reshape(N, N)
+    Y = np.array(doses.apply(lambda x: x[1]).astype(float)).reshape(N, N)
+    Z = np.array(df_pred[f"uncertainty_{metric}"].values.astype(float)).reshape(N, N)
 
     fig, ax = plt.subplots(1, 1)
-    CS = ax.contourf(X, Y, Z, cmap='coolwarm', levels=20,
-        alpha=1, vmin=vmin, vmax=vmax)
+    CS = ax.contourf(X, Y, Z, cmap="coolwarm", levels=20, alpha=1, vmin=vmin, vmax=vmax)
 
-    ax.set_xlabel(pert.split('+')[0], fontweight="bold")
-    ax.set_ylabel(pert.split('+')[1], fontweight="bold")
+    ax.set_xlabel(pert.split("+")[0], fontweight="bold")
+    ax.set_ylabel(pert.split("+")[1], fontweight="bold")
     if title:
         ax.set_title(cov_name)
 
     if not (df_ref is None):
         sns.scatterplot(
-            x=pert.split('+')[0],
-            y=pert.split('+')[1],
-            hue='split',
-            size='num_cells',
+            x=pert.split("+")[0],
+            y=pert.split("+")[1],
+            hue="split",
+            size="num_cells",
             sizes=sizes,
-            alpha=1.,
-            palette={'train': '#000000', 'training': '#000000', 'ood': '#e41a1c'},
+            alpha=1.0,
+            palette={"train": "#000000", "training": "#000000", "ood": "#e41a1c"},
             data=df_ref,
-            ax=ax)
+            ax=ax,
+        )
         ax.legend_.remove()
 
     if measured_points:
         ticks = measured_points[cov_name][pert]
-        xticks = [float(x.split('+')[0]) for x in ticks]
-        yticks = [float(x.split('+')[1]) for x in ticks]
+        xticks = [float(x.split("+")[0]) for x in ticks]
+        yticks = [float(x.split("+")[1]) for x in ticks]
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticks, rotation=90)
         ax.set_yticks(yticks)
@@ -767,17 +777,18 @@ def plot_uncertainty_comb_dose(
 
     return df_pred
 
+
 def plot_uncertainty_dose(
     compert_api,
     cov,
     pert,
     N=11,
-    metric='cosine',
+    metric="cosine",
     measured_points=None,
-    cond_key='condition',
+    cond_key="condition",
     log=False,
     min_dose=None,
-    filename=None
+    filename=None,
 ):
     """Plotting uncertainty for a single perturbation at a dose range for a
     particular covariate.
@@ -820,50 +831,47 @@ def plot_uncertainty_dose(
     else:
         if min_dose is None:
             min_dose = 0
-        N_val = np.round(np.linspace(min_dose, 1., N), decimals=3)
+        N_val = np.round(np.linspace(min_dose, 1.0, N), decimals=3)
 
-    cov_name = '_'.join([cov[cov_key] for cov_key in compert_api.covariate_keys])
+    cov_name = "_".join([cov[cov_key] for cov_key in compert_api.covariate_keys])
 
     for i in N_val:
-        df_list.append(
-            {'covariates': cov_name,
-            'condition': pert, 
-            'dose_val': repr(i)}
-        )
+        df_list.append({"covariates": cov_name, "condition": pert, "dose_val": repr(i)})
 
     df_pred = pd.DataFrame(df_list)
     uncert_cos = []
     uncert_eucl = []
     closest_cond_cos = []
     closest_cond_eucl = []
-    
+
     for i in range(df_pred.shape[0]):
-        uncert_cos_, uncert_eucl_, closest_cond_cos_, closest_cond_eucl_ = (
-            compert_api.compute_uncertainty(
-                cov=cov,
-                pert=df_pred.iloc[i]['condition'],
-                dose=df_pred.iloc[i]['dose_val']
-            )
+        (
+            uncert_cos_,
+            uncert_eucl_,
+            closest_cond_cos_,
+            closest_cond_eucl_,
+        ) = compert_api.compute_uncertainty(
+            cov=cov, pert=df_pred.iloc[i]["condition"], dose=df_pred.iloc[i]["dose_val"]
         )
         uncert_cos.append(uncert_cos_)
         uncert_eucl.append(uncert_eucl_)
         closest_cond_cos.append(closest_cond_cos_)
         closest_cond_eucl.append(closest_cond_eucl_)
 
-    df_pred['uncertainty_cosine'] = uncert_cos
-    df_pred['uncertainty_eucl'] = uncert_eucl
-    df_pred['closest_cond_cos'] = closest_cond_cos
-    df_pred['closest_cond_eucl'] = closest_cond_eucl
+    df_pred["uncertainty_cosine"] = uncert_cos
+    df_pred["uncertainty_eucl"] = uncert_eucl
+    df_pred["closest_cond_cos"] = closest_cond_cos
+    df_pred["closest_cond_eucl"] = closest_cond_eucl
 
     x = df_pred.dose_val.values.astype(float)
-    y = df_pred[f'uncertainty_{metric}'].values.astype(float)
+    y = df_pred[f"uncertainty_{metric}"].values.astype(float)
     fig, ax = plt.subplots(1, 1)
     ax.plot(x, y)
     ax.set_xlabel(pert)
-    ax.set_ylabel('Uncertainty')
+    ax.set_ylabel("Uncertainty")
     ax.set_title(cov_name)
     if log:
-        ax.set_xscale('log')
+        ax.set_xscale("log")
     if measured_points:
         ticks = measured_points[cov_name][pert]
         ax.set_xticks(ticks)
@@ -881,15 +889,14 @@ def plot_uncertainty_dose(
     return df_pred
 
 
-
 def save_to_file(fig, file_name, file_format=None):
     if file_format is None:
-        if file_name.split(".")[-1] in ['png', 'pdf']:
+        if file_name.split(".")[-1] in ["png", "pdf"]:
             file_format = file_name.split(".")[-1]
             savename = file_name
         else:
-            file_format = 'pdf'
-            savename = f'{file_name}.{file_format}'
+            file_format = "pdf"
+            savename = f"{file_name}.{file_format}"
     else:
         savename = file_name
 
@@ -898,36 +905,35 @@ def save_to_file(fig, file_name, file_format=None):
 
 
 def plot_embedding(
-        emb,
-        labels=None,
-        col_dict=None,
-        title=None,
-        show_lines=False,
-        show_text=False,
-        show_legend=True,
-        axis_equal=True,
-        circle_size=40,
-        circe_transparency=1.0,
-        line_transparency=0.8,
-        line_width=1.0,
-        fontsize=9,
-        fig_width=4,
-        fig_height=4,
-        file_name=None,
-        file_format=None,
-        labels_name=None,
-        width_ratios=[7, 1],
-        bbox=(1.3, 0.7)
-    ):
+    emb,
+    labels=None,
+    col_dict=None,
+    title=None,
+    show_lines=False,
+    show_text=False,
+    show_legend=True,
+    axis_equal=True,
+    circle_size=40,
+    circe_transparency=1.0,
+    line_transparency=0.8,
+    line_width=1.0,
+    fontsize=9,
+    fig_width=4,
+    fig_height=4,
+    file_name=None,
+    file_format=None,
+    labels_name=None,
+    width_ratios=[7, 1],
+    bbox=(1.3, 0.7),
+):
     sns.set_style("white")
 
     # create data structure suitable for embedding
-    df = pd.DataFrame(emb, columns=['dim1', 'dim2'])
+    df = pd.DataFrame(emb, columns=["dim1", "dim2"])
     if not (labels is None):
         if labels_name is None:
-            labels_name = 'labels'
+            labels_name = "labels"
         df[labels_name] = labels
-
 
     fig = plt.figure(figsize=(fig_width, fig_height))
     ax = plt.gca()
@@ -946,7 +952,8 @@ def plot_embedding(
         edgecolor="none",
         s=circle_size,
         data=df,
-        ax=ax)
+        ax=ax,
+    )
 
     try:
         ax.legend_.remove()
@@ -961,7 +968,7 @@ def plot_embedding(
                     [0, emb[i, 1]],
                     alpha=line_transparency,
                     linewidth=line_width,
-                    c=None
+                    c=None,
                 )
             else:
                 ax.plot(
@@ -969,7 +976,7 @@ def plot_embedding(
                     [0, emb[i, 1]],
                     alpha=line_transparency,
                     linewidth=line_width,
-                    c=col_dict[labels[i]]
+                    c=col_dict[labels[i]],
                 )
 
     if show_text and not (labels is None):
@@ -983,26 +990,23 @@ def plot_embedding(
                     np.mean(emb[idx_label, 0]),
                     np.mean(emb[idx_label, 1]),
                     label,
-                    fontsize=fontsize
+                    fontsize=fontsize,
                 )
             )
 
         adjust_text(
-            texts,
-            arrowprops=dict(arrowstyle='-', color='black', lw=0.1),
-            ax=ax
+            texts, arrowprops=dict(arrowstyle="-", color="black", lw=0.1), ax=ax
         )
 
     if axis_equal:
-        ax.axis('equal')
-        ax.axis('square')
-
+        ax.axis("equal")
+        ax.axis("square")
 
     if title:
         ax.set_title(title, fontsize=fontsize, fontweight="bold")
 
-    ax.set_xlabel('dim1', fontsize=fontsize)
-    ax.set_ylabel('dim2', fontsize=fontsize)
+    ax.set_xlabel("dim1", fontsize=fontsize)
+    ax.set_ylabel("dim2", fontsize=fontsize)
     ax.xaxis.set_tick_params(labelsize=fontsize)
     ax.yaxis.set_tick_params(labelsize=fontsize)
 
@@ -1014,11 +1018,7 @@ def plot_embedding(
     return plt
 
 
-def get_colors(
-    labels,
-    palette=None,
-    palette_name=None
-    ):
+def get_colors(labels, palette=None, palette_name=None):
     n_colors = len(labels)
     if palette is None:
         palette = get_palette(n_colors, palette_name)
@@ -1027,17 +1027,17 @@ def get_colors(
 
 
 def plot_similarity(
-        emb,
-        labels=None,
-        col_dict=None,
-        fig_width=4,
-        fig_height=4,
-        cmap='coolwarm',
-        fmt='png',
-        fontsize=7,
-        file_format=None,
-        file_name=None
-    ):
+    emb,
+    labels=None,
+    col_dict=None,
+    fig_width=4,
+    fig_height=4,
+    cmap="coolwarm",
+    fmt="png",
+    fontsize=7,
+    file_format=None,
+    file_name=None,
+):
 
     # first we take construct similarity matrix
     # add another similarity
@@ -1061,15 +1061,16 @@ def plot_similarity(
         row_colors=network_colors,
         col_colors=network_colors,
         mask=False,
-        metric='euclidean',
+        metric="euclidean",
         figsize=(fig_height, fig_width),
-        vmin=-1, vmax=1,
-        fmt=file_format
+        vmin=-1,
+        vmax=1,
+        fmt=file_format,
     )
 
     sns_plot.ax_heatmap.xaxis.set_tick_params(labelsize=fontsize)
     sns_plot.ax_heatmap.yaxis.set_tick_params(labelsize=fontsize)
-    sns_plot.ax_heatmap.axis('equal')
+    sns_plot.ax_heatmap.axis("equal")
     sns_plot.cax.yaxis.set_tick_params(labelsize=fontsize)
 
     if file_name:
@@ -1096,8 +1097,8 @@ def mean_plot(
     fontsize=11,
     R2_type="R2",
     figsize=(3.5, 3.5),
-    **kwargs
-    ):
+    **kwargs,
+):
     """
     Plots mean matching.
 
@@ -1137,7 +1138,7 @@ def mean_plot(
     Calluated R2 values
     """
 
-    r2_types = ['R2', 'Pearson R2']
+    r2_types = ["R2", "Pearson R2"]
     if R2_type not in r2_types:
         raise ValueError("R2 caclulation should be one of" + str(r2_types))
     if sparse.issparse(adata.X):
@@ -1157,50 +1158,57 @@ def mean_plot(
         if R2_type == "R2":
             r2_diff = r2_score(y_diff, x_diff)
         if R2_type == "Pearson R2":
-            m, b, pearson_r_diff, p_value_diff, std_err_diff =\
-                stats.linregress(y_diff, x_diff)
-            r2_diff = pearson_r_diff**2
+            m, b, pearson_r_diff, p_value_diff, std_err_diff = stats.linregress(
+                y_diff, x_diff
+            )
+            r2_diff = pearson_r_diff ** 2
         if verbose:
-            print(f'Top {len(diff_genes)} DEGs var: ', r2_diff)
+            print(f"Top {len(diff_genes)} DEGs var: ", r2_diff)
     x = np.average(pred.X, axis=0)
     y = np.average(real.X, axis=0)
     if R2_type == "R2":
         r2 = r2_score(y, x)
     if R2_type == "Pearson R2":
         m, b, pearson_r, p_value, std_err = stats.linregress(y, x)
-        r2 = pearson_r**2
+        r2 = pearson_r ** 2
     if verbose:
-        print('All genes var: ', r2)
-    df = pd.DataFrame({f'{exp_key}_true': x, f'{exp_key}_pred': y})
+        print("All genes var: ", r2)
+    df = pd.DataFrame({f"{exp_key}_true": x, f"{exp_key}_pred": y})
 
     plt.figure(figsize=figsize)
-    ax = sns.regplot(x=f'{exp_key}_true', y=f'{exp_key}_pred', data=df)
+    ax = sns.regplot(x=f"{exp_key}_true", y=f"{exp_key}_pred", data=df)
     ax.tick_params(labelsize=fontsize)
     if "range" in kwargs:
         start, stop, step = kwargs.get("range")
         ax.set_xticks(np.arange(start, stop, step))
         ax.set_yticks(np.arange(start, stop, step))
-    ax.set_xlabel('true', fontsize=fontsize)
-    ax.set_ylabel('pred', fontsize=fontsize)
+    ax.set_xlabel("true", fontsize=fontsize)
+    ax.set_ylabel("pred", fontsize=fontsize)
     if gene_list is not None:
         for i in gene_list:
             j = adata.var_names.tolist().index(i)
             x_bar = x[j]
             y_bar = y[j]
             plt.text(x_bar, y_bar, i, fontsize=fontsize, color="black")
-            plt.plot(x_bar, y_bar, 'o', color="red", markersize=5)
+            plt.plot(x_bar, y_bar, "o", color="red", markersize=5)
     if title is None:
         plt.title(f"", fontsize=fontsize, fontweight="bold")
     else:
         plt.title(title, fontsize=fontsize, fontweight="bold")
-    ax.text(max(x) - max(x) * x_coeff, max(y) - y_coeff * max(y),
-            r'$\mathrm{R^2_{\mathrm{\mathsf{all\ genes}}}}$= ' + f"{r2:.2f}",
-            fontsize=fontsize)
+    ax.text(
+        max(x) - max(x) * x_coeff,
+        max(y) - y_coeff * max(y),
+        r"$\mathrm{R^2_{\mathrm{\mathsf{all\ genes}}}}$= " + f"{r2:.2f}",
+        fontsize=fontsize,
+    )
     if diff_genes is not None:
-        ax.text(max(x) - max(x) * x_coeff, max(y) - (y_coeff + 0.15) * max(y),
-                r'$\mathrm{R^2_{\mathrm{\mathsf{DEGs}}}}$= ' + f"{r2_diff:.2f}",
-                fontsize=fontsize)
-    plt.savefig(f"{path_to_save}", bbox_inches='tight', dpi=100)
+        ax.text(
+            max(x) - max(x) * x_coeff,
+            max(y) - (y_coeff + 0.15) * max(y),
+            r"$\mathrm{R^2_{\mathrm{\mathsf{DEGs}}}}$= " + f"{r2_diff:.2f}",
+            fontsize=fontsize,
+        )
+    plt.savefig(f"{path_to_save}", bbox_inches="tight", dpi=100)
     if show:
         plt.show()
     plt.close()
@@ -1225,37 +1233,45 @@ def plot_r2_matrix(pred, adata, de_genes=None, **kwds):
     """
     r2s_mean = defaultdict(list)
     r2s_var = defaultdict(list)
-    conditions = pred.obs['cov_drug_dose_name'].cat.categories
+    conditions = pred.obs["cov_drug_dose_name"].cat.categories
     for cond in conditions:
         if de_genes:
             degs = de_genes[cond]
-            y_pred = pred[:, degs][pred.obs['cov_drug_dose_name'] == cond].X
+            y_pred = pred[:, degs][pred.obs["cov_drug_dose_name"] == cond].X
             y_true_adata = adata[:, degs]
         else:
-            y_pred = pred[pred.obs['cov_drug_dose_name'] == cond].X
+            y_pred = pred[pred.obs["cov_drug_dose_name"] == cond].X
             y_true_adata = adata
 
         # calculate r2 between pairwise
         for cond_real in conditions:
-            y_true = y_true_adata[y_true_adata.obs['cov_drug_dose_name'] ==\
-                cond_real].X.toarray()
-            r2s_mean[cond_real].append(r2_score(y_true.mean(axis=0),\
-                y_pred.mean(axis=0)))
-            r2s_var[cond_real].append(r2_score(y_true.var(axis=0),\
-                y_pred.var(axis=0)))
+            y_true = y_true_adata[
+                y_true_adata.obs["cov_drug_dose_name"] == cond_real
+            ].X.toarray()
+            r2s_mean[cond_real].append(
+                r2_score(y_true.mean(axis=0), y_pred.mean(axis=0))
+            )
+            r2s_var[cond_real].append(r2_score(y_true.var(axis=0), y_pred.var(axis=0)))
 
     for r2_dict in [r2s_mean, r2s_var]:
-        r2_df = pd.DataFrame.from_dict(r2_dict, orient='index')
+        r2_df = pd.DataFrame.from_dict(r2_dict, orient="index")
         r2_df.columns = conditions
 
         plt.figure(figsize=(5, 5))
-        p = sns.heatmap(data=r2_df, vmin = max(r2_df.min(0).min(), 0),
-            cmap='Blues', cbar=False,
-            annot=True, fmt='.2f', annot_kws={'fontsize':5}, **kwds)
+        p = sns.heatmap(
+            data=r2_df,
+            vmin=max(r2_df.min(0).min(), 0),
+            cmap="Blues",
+            cbar=False,
+            annot=True,
+            fmt=".2f",
+            annot_kws={"fontsize": 5},
+            **kwds,
+        )
         plt.xticks(fontsize=6)
         plt.yticks(fontsize=6)
-        plt.xlabel('y_true')
-        plt.ylabel('y_pred')
+        plt.xlabel("y_true")
+        plt.ylabel("y_pred")
         plt.show()
 
 
@@ -1268,10 +1284,8 @@ class ComPertHistory:
     """
     A wrapper for automatic plotting history of ComPert model..
     """
-    def __init__(self,
-                history,
-                fileprefix=None
-                ):
+
+    def __init__(self, history, fileprefix=None):
         """
         Parameters
         ----------
@@ -1282,30 +1296,37 @@ class ComPertHistory:
             standartized manner. If None, embeddings are not saved to file.
         """
 
-        self.time = history['elapsed_time_min']
-        self.losses_list = ['loss_reconstruction', 'loss_adv_drugs',\
-            'loss_adv_covariates']
-        self.penalties_list = ['penalty_adv_drugs', 'penalty_adv_covariates']
+        self.time = history["elapsed_time_min"]
+        self.losses_list = [
+            "loss_reconstruction",
+            "loss_adv_drugs",
+            "loss_adv_covariates",
+        ]
+        self.penalties_list = ["penalty_adv_drugs", "penalty_adv_covariates"]
 
-        subset_keys = ['epoch'] + self.losses_list + self.penalties_list
+        subset_keys = ["epoch"] + self.losses_list + self.penalties_list
 
-        self.losses = pd.DataFrame(dict((k, history[k]) for k in\
-            subset_keys if k in history))
+        self.losses = pd.DataFrame(
+            dict((k, history[k]) for k in subset_keys if k in history)
+        )
 
-        self.header = ['mean', 'mean_DE', 'var', 'var_DE']
+        self.header = ["mean", "mean_DE", "var", "var_DE"]
 
-        self.metrics = pd.DataFrame(columns=['epoch', 'split'] + self.header)
-        for split in ['training', 'test', 'ood']:
+        self.metrics = pd.DataFrame(columns=["epoch", "split"] + self.header)
+        for split in ["training", "test", "ood"]:
             df_split = pd.DataFrame(np.array(history[split]), columns=self.header)
-            df_split['split'] = split
-            df_split['epoch'] = history['stats_epoch']
+            df_split["split"] = split
+            df_split["epoch"] = history["stats_epoch"]
             self.metrics = pd.concat([self.metrics, df_split])
 
-        self.disent = pd.DataFrame(dict((k, history[k])\
-            for k in ['perturbation disentanglement',\
-            'covariate disentanglement'] if k in\
-                history))
-        self.disent['epoch'] = history['stats_epoch']
+        self.disent = pd.DataFrame(
+            dict(
+                (k, history[k])
+                for k in ["perturbation disentanglement", "covariate disentanglement"]
+                if k in history
+            )
+        )
+        self.disent["epoch"] = history["stats_epoch"]
 
         self.fileprefix = fileprefix
 
@@ -1324,20 +1345,22 @@ class ComPertHistory:
             if self.fileprefix is None:
                 filename = None
             else:
-                filename = f'{self.fileprefix}_history_losses.png'
+                filename = f"{self.fileprefix}_history_losses.png"
 
-        fig, ax = plt.subplots(1, 4, sharex=True, sharey=False, figsize=(12, 2.))
+        fig, ax = plt.subplots(1, 4, sharex=True, sharey=False, figsize=(12, 2.0))
 
         i = 0
         for i in range(4):
             if i < 3:
-                ax[i].plot(self.losses['epoch'].values,\
-                    self.losses[self.losses_list[i]].values)
+                ax[i].plot(
+                    self.losses["epoch"].values, self.losses[self.losses_list[i]].values
+                )
                 ax[i].set_title(self.losses_list[i], fontweight="bold")
             else:
-                ax[i].plot(self.losses['epoch'].values,\
-                    self.losses[self.penalties_list].values)
-                ax[i].set_title('Penalties', fontweight="bold")
+                ax[i].plot(
+                    self.losses["epoch"].values, self.losses[self.penalties_list].values
+                )
+                ax[i].set_title("Penalties", fontweight="bold")
         plt.tight_layout()
 
         if filename:
@@ -1358,34 +1381,36 @@ class ComPertHistory:
             if self.fileprefix is None:
                 filename = None
             else:
-                filename = f'{self.fileprefix}_history_metrics.png'
+                filename = f"{self.fileprefix}_history_metrics.png"
 
         df = self.metrics.melt(id_vars=["epoch", "split"])
-        col_dict = dict(zip(['training', 'test', 'ood'],\
-            ['#377eb8', '#4daf4a', '#e41a1c']))
-        fig, axs = plt.subplots(3, 2, sharex=True, sharey=False, figsize=(7, 7.))
+        col_dict = dict(
+            zip(["training", "test", "ood"], ["#377eb8", "#4daf4a", "#e41a1c"])
+        )
+        fig, axs = plt.subplots(3, 2, sharex=True, sharey=False, figsize=(7, 7.0))
         ax = plt.gca()
         i = 0
         for i1 in range(2):
             for i2 in range(2):
                 sns.lineplot(
-                    data=df[(df['variable'] == self.header[i]) &\
-                         (df['epoch'] > epoch_min)],
+                    data=df[
+                        (df["variable"] == self.header[i]) & (df["epoch"] > epoch_min)
+                    ],
                     x="epoch",
                     y="value",
                     palette=col_dict,
                     hue="split",
-                    ax=axs[i1, i2]
+                    ax=axs[i1, i2],
                 )
                 axs[i1, i2].set_title(self.header[i], fontweight="bold")
                 i += 1
 
         sns.lineplot(
-            data=self.disent[self.disent['epoch'] > epoch_min],
+            data=self.disent[self.disent["epoch"] > epoch_min],
             x="epoch",
             y="perturbation disentanglement",
             legend=False,
-            ax=axs[2, 0]
+            ax=axs[2, 0],
         )
         axs[2, 0].set_title("perturbation disentanglement", fontweight="bold")
 

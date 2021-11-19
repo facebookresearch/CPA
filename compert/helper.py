@@ -14,6 +14,7 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
+
 def rank_genes_groups_by_cov(
     adata,
     groupby,
@@ -22,7 +23,7 @@ def rank_genes_groups_by_cov(
     pool_doses=False,
     n_genes=50,
     rankby_abs=True,
-    key_added='rank_genes_groups_cov',
+    key_added="rank_genes_groups_cov",
     return_dict=False,
 ):
 
@@ -79,23 +80,23 @@ def rank_genes_groups_by_cov(
     cov_categories = adata.obs[covariate].unique()
     for cov_cat in cov_categories:
         print(cov_cat)
-        #name of the control group in the groupby obs column
-        control_group_cov = '_'.join([cov_cat, control_group])
+        # name of the control group in the groupby obs column
+        control_group_cov = "_".join([cov_cat, control_group])
 
-        #subset adata to cells belonging to a covariate category
-        adata_cov = adata[adata.obs[covariate]==cov_cat]
+        # subset adata to cells belonging to a covariate category
+        adata_cov = adata[adata.obs[covariate] == cov_cat]
 
-        #compute DEGs
+        # compute DEGs
         sc.tl.rank_genes_groups(
             adata_cov,
             groupby=groupby,
             reference=control_group_cov,
             rankby_abs=rankby_abs,
-            n_genes=n_genes
+            n_genes=n_genes,
         )
 
-        #add entries to dictionary of gene sets
-        de_genes = pd.DataFrame(adata_cov.uns['rank_genes_groups']['names'])
+        # add entries to dictionary of gene sets
+        de_genes = pd.DataFrame(adata_cov.uns["rank_genes_groups"]["names"])
         for group in de_genes:
             gene_dict[group] = de_genes[group].tolist()
 
@@ -111,7 +112,7 @@ def rank_genes_groups(
     pool_doses=False,
     n_genes=50,
     rankby_abs=True,
-    key_added='rank_genes_groups_cov',
+    key_added="rank_genes_groups_cov",
     return_dict=False,
 ):
 
@@ -166,26 +167,28 @@ def rank_genes_groups(
 
     covars_comb = []
     for i in range(len(adata)):
-        cov = '_'.join(adata.obs['cov_drug_dose_name'].values[i].split('_')[:-2])
+        cov = "_".join(adata.obs["cov_drug_dose_name"].values[i].split("_")[:-2])
         covars_comb.append(cov)
-    adata.obs['covars_comb'] = covars_comb
+    adata.obs["covars_comb"] = covars_comb
 
     gene_dict = {}
-    for cov_cat in np.unique(adata.obs['covars_comb'].values):
-        adata_cov = adata[adata.obs['covars_comb']==cov_cat]
-        control_group_cov = adata_cov[adata_cov.obs['control'] == 1].obs[groupby].values[0]
+    for cov_cat in np.unique(adata.obs["covars_comb"].values):
+        adata_cov = adata[adata.obs["covars_comb"] == cov_cat]
+        control_group_cov = (
+            adata_cov[adata_cov.obs["control"] == 1].obs[groupby].values[0]
+        )
 
-        #compute DEGs
+        # compute DEGs
         sc.tl.rank_genes_groups(
             adata_cov,
             groupby=groupby,
             reference=control_group_cov,
             rankby_abs=rankby_abs,
-            n_genes=n_genes
+            n_genes=n_genes,
         )
 
-        #add entries to dictionary of gene sets
-        de_genes = pd.DataFrame(adata_cov.uns['rank_genes_groups']['names'])
+        # add entries to dictionary of gene sets
+        de_genes = pd.DataFrame(adata_cov.uns["rank_genes_groups"]["names"])
         for group in de_genes:
             gene_dict[group] = de_genes[group].tolist()
 
@@ -193,4 +196,3 @@ def rank_genes_groups(
 
     if return_dict:
         return gene_dict
-

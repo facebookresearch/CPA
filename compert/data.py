@@ -15,7 +15,7 @@ from compert.helper import rank_genes_groups
 from sklearn.preprocessing import OneHotEncoder
 
 
-def ranks_to_df(data, key='rank_genes_groups'):
+def ranks_to_df(data, key="rank_genes_groups"):
     """Converts an `sc.tl.rank_genes_groups` result into a MultiIndex dataframe.
 
     You can access various levels of the MultiIndex with `df.loc[[category]]`.
@@ -30,7 +30,7 @@ def ranks_to_df(data, key='rank_genes_groups'):
     d = data.uns[key]
     dfs = []
     for k in d.keys():
-        if k == 'params':
+        if k == "params":
             continue
         series = pd.DataFrame.from_records(d[k]).unstack()
         series.name = k
@@ -38,21 +38,24 @@ def ranks_to_df(data, key='rank_genes_groups'):
 
     return pd.concat(dfs, axis=1)
 
+
 def check_adata(adata, special_fields):
     replaced = False
     for sf in special_fields:
         if sf in adata.obs:
             flag = 0
             for el in adata.obs[sf].values:
-                if '_' in str(el):
+                if "_" in str(el):
                     flag += 1
             if flag:
-                print(f"WARNING. Special characters ('_') were found in: '{sf}'.",
-                "They will be replaced with '-'.",
-                "Be careful, it may lead to errors downstream.")
+                print(
+                    f"WARNING. Special characters ('_') were found in: '{sf}'.",
+                    "They will be replaced with '-'.",
+                    "Be careful, it may lead to errors downstream.",
+                )
                 adata.obs[sf] = [s.replace("_", "-") for s in adata.obs[sf].values]
                 replaced = True
-                
+
     return adata, replaced
 
 
@@ -67,10 +70,10 @@ class Dataset:
         dose_key=None,
         covariate_keys=None,
         split_key="split",
-        control=None
+        control=None,
     ):
         if type(data) == str:
-            data = sc.read(data)        
+            data = sc.read(data)
 
         self.perturbation_key = perturbation_key
         self.dose_key = dose_key
@@ -81,53 +84,58 @@ class Dataset:
             self.genes = torch.Tensor(data.X)
 
         self.var_names = data.var_names
-        assert len(covariate_keys) > 0, 'please provide name for dummy covariate. Can not be empty list'
-        assert not (split_key is None), 'split_key can not be None'
+        assert (
+            len(covariate_keys) > 0
+        ), "please provide name for dummy covariate. Can not be empty list"
+        assert not (split_key is None), "split_key can not be None"
 
         if isinstance(covariate_keys, str):
             covariate_keys = [covariate_keys]
-        self.covariate_keys = covariate_keys        
+        self.covariate_keys = covariate_keys
 
-        data, replaced =\
-            check_adata(data, [perturbation_key, dose_key] + covariate_keys)
-        
+        data, replaced = check_adata(
+            data, [perturbation_key, dose_key] + covariate_keys
+        )
+
         for cov in covariate_keys:
-            if not (cov in data.obs): 
-                data.obs[cov] = 'unknown'
+            if not (cov in data.obs):
+                data.obs[cov] = "unknown"
 
         if split_key in data.obs:
             pass
         else:
-            print('Performing automatic train-test split with 0.25 ratio.')
+            print("Performing automatic train-test split with 0.25 ratio.")
             from sklearn.model_selection import train_test_split
-            data.obs[split_key] = 'train'
+
+            data.obs[split_key] = "train"
             idx = list(range(len(data)))
             idx_train, idx_test = train_test_split(
-                data.obs_names, test_size=0.25, random_state=42)
-            data.obs[split_key].loc[idx_train] = 'train'
-            data.obs[split_key].loc[idx_test] = 'test'
+                data.obs_names, test_size=0.25, random_state=42
+            )
+            data.obs[split_key].loc[idx_train] = "train"
+            data.obs[split_key].loc[idx_test] = "test"
 
-        if 'control' in data.obs:
+        if "control" in data.obs:
             self.ctrl = data.obs["control"].values
         else:
-            print(f'Assigning control values for {control}')
+            print(f"Assigning control values for {control}")
             assert_msg = "Please provide a name for control condition."
             assert not (control is None), assert_msg
-            data.obs["control"] = 0            
-            if dose_key in data.obs:           
-                pert, dose = control.split('_')
+            data.obs["control"] = 0
+            if dose_key in data.obs:
+                pert, dose = control.split("_")
                 data.obs.loc[
-                    (data.obs[perturbation_key] == pert) & \
-                    (data.obs[dose_key] == dose), 'control'] = 1
+                    (data.obs[perturbation_key] == pert) & (data.obs[dose_key] == dose),
+                    "control",
+                ] = 1
             else:
                 pert = control
-                data.obs.loc[
-                    (data.obs[perturbation_key] == pert), 'control'] = 1
+                data.obs.loc[(data.obs[perturbation_key] == pert), "control"] = 1
 
             self.ctrl = data.obs["control"].values
-            assert_msg = 'Cells to assign as control not found! Please check the name of control variable.'
+            assert_msg = "Cells to assign as control not found! Please check the name of control variable."
             assert sum(self.ctrl), assert_msg
-            print(f'Assigned {sum(self.ctrl)} control cells')
+            print(f"Assigned {sum(self.ctrl)} control cells")
 
         if perturbation_key is not None:
             if dose_key is None:
@@ -135,28 +143,30 @@ class Dataset:
                     f"A 'dose_key' is required when provided a 'perturbation_key'({perturbation_key})."
                 )
             if not (dose_key in data.obs):
-                print(f'Creating a default entrance for dose_key {dose_key}:',
-                    '1.0 per perturbation')
+                print(
+                    f"Creating a default entrance for dose_key {dose_key}:",
+                    "1.0 per perturbation",
+                )
                 dose_val = []
                 for i in range(len(data)):
-                    pert = data.obs[perturbation_key].values[i].split('+')
-                    dose_val.append('+'.join(['1.0']*len(pert)))
+                    pert = data.obs[perturbation_key].values[i].split("+")
+                    dose_val.append("+".join(["1.0"] * len(pert)))
                 data.obs[dose_key] = dose_val
 
-            if not ('cov_drug_dose_name' in data.obs) or replaced:
+            if not ("cov_drug_dose_name" in data.obs) or replaced:
                 print("Creating 'cov_drug_dose_name' field.")
                 cov_drug_dose_name = []
                 for i in range(len(data)):
-                    comb_name = ''
+                    comb_name = ""
                     for cov_key in self.covariate_keys:
-                        comb_name += f'{data.obs[cov_key].values[i]}_'
-                    comb_name += f'{data.obs[perturbation_key].values[i]}_{data.obs[dose_key].values[i]}'
+                        comb_name += f"{data.obs[cov_key].values[i]}_"
+                    comb_name += f"{data.obs[perturbation_key].values[i]}_{data.obs[dose_key].values[i]}"
                     cov_drug_dose_name.append(comb_name)
-                data.obs['cov_drug_dose_name'] = cov_drug_dose_name            
+                data.obs["cov_drug_dose_name"] = cov_drug_dose_name
 
-            if not ('rank_genes_groups_cov' in data.uns) or replaced:
-                print('Ranking genes for DE genes.')
-                rank_genes_groups(data, groupby='cov_drug_dose_name')
+            if not ("rank_genes_groups_cov" in data.uns) or replaced:
+                print("Ranking genes for DE genes.")
+                rank_genes_groups(data, groupby="cov_drug_dose_name")
 
             self.pert_categories = np.array(data.obs["cov_drug_dose_name"].values)
             self.de_genes = data.uns["rank_genes_groups_cov"]
@@ -168,7 +178,7 @@ class Dataset:
             drugs_names_unique = set()
             for d in self.drugs_names:
                 [drugs_names_unique.add(i) for i in d.split("+")]
-            self.drugs_names_unique = np.array(list(drugs_names_unique))            
+            self.drugs_names_unique = np.array(list(drugs_names_unique))
 
             # save encoder for a comparison with Mo's model
             # later we need to remove this part
@@ -243,7 +253,7 @@ class Dataset:
             self.covariate_names = None
             self.covariate_names_unique = None
             self.atomic_сovars_dict = None
-            self.covariates = None        
+            self.covariates = None
 
         if perturbation_key is not None:
             self.ctrl_name = list(
@@ -338,12 +348,8 @@ def load_dataset_splits(
 ):
 
     dataset = Dataset(
-        dataset_path,
-        perturbation_key,
-        dose_key,
-        covariate_keys,
-        split_key,
-        control)
+        dataset_path, perturbation_key, dose_key, covariate_keys, split_key, control
+    )
 
     splits = {
         "training": dataset.subset("train", "all"),

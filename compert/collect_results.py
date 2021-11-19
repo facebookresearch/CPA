@@ -9,7 +9,7 @@ import numpy as np
 from model_selection import *
 
 
-def run_collect_results(save_dir, one_line, metric='onlyDEmeans'):
+def run_collect_results(save_dir, one_line, metric="onlyDEmeans"):
     records = []
     for fname in os.listdir(save_dir):
         if fname.endswith(".out"):
@@ -33,23 +33,35 @@ def run_collect_results(save_dir, one_line, metric='onlyDEmeans'):
                 if epoch["evaluation_stats"]["optimal for covariates"] == 1:
                     epoch["evaluation_stats"]["optimal for covariates"] = 0
 
-                if metric == 'all':
+                if metric == "all":
                     this_score = np.mean(epoch["evaluation_stats"]["test"])
-                elif metric == 'onlyDEmeans':
-                    this_score = epoch["evaluation_stats"]["test"][1]                
-                elif metric == 'onlyDE':
-                    this_score = epoch["evaluation_stats"]["test"][1]+\
-                    epoch["evaluation_stats"]["test"][3]
-                elif metric == 'woDE':
-                    this_score = (epoch["evaluation_stats"]["test"][0]+\
-                    epoch["evaluation_stats"]["test"][2])/2
+                elif metric == "onlyDEmeans":
+                    this_score = epoch["evaluation_stats"]["test"][1]
+                elif metric == "onlyDE":
+                    this_score = (
+                        epoch["evaluation_stats"]["test"][1]
+                        + epoch["evaluation_stats"]["test"][3]
+                    )
+                elif metric == "woDE":
+                    this_score = (
+                        epoch["evaluation_stats"]["test"][0]
+                        + epoch["evaluation_stats"]["test"][2]
+                    ) / 2
                 else:
                     raise NotImplementedError
 
-                this_score -=  abs(epoch["evaluation_stats"]["perturbation disentanglement"] -\
-                     epoch["evaluation_stats"]["optimal for perturbations"])/2 +\
-                     abs(epoch["evaluation_stats"]["covariate disentanglement"] -\
-                     epoch["evaluation_stats"]["optimal for covariates"])/2
+                this_score -= (
+                    abs(
+                        epoch["evaluation_stats"]["perturbation disentanglement"]
+                        - epoch["evaluation_stats"]["optimal for perturbations"]
+                    )
+                    / 2
+                    + abs(
+                        epoch["evaluation_stats"]["covariate disentanglement"]
+                        - epoch["evaluation_stats"]["optimal for covariates"]
+                    )
+                    / 2
+                )
 
                 if best_score is None or this_score > best_score:
                     best_score = this_score
@@ -60,15 +72,18 @@ def run_collect_results(save_dir, one_line, metric='onlyDEmeans'):
         "training_args": records[best_record][0]["training_args"],
         "autoencoder_params": records[best_record][1]["autoencoder_params"],
         "best_epoch": records[best_record][best_epoch]["epoch"],
-        "best_stats": records[best_record][best_epoch]["evaluation_stats"]
-
+        "best_stats": records[best_record][best_epoch]["evaluation_stats"],
     }
 
-    best_stats.update({
-        "best_file": "{}/model_seed={}_epoch={}.pt".format(
-            best_stats["training_args"]["save_dir"],
-            best_stats["training_args"]["seed"],
-            best_stats["best_epoch"])})
+    best_stats.update(
+        {
+            "best_file": "{}/model_seed={}_epoch={}.pt".format(
+                best_stats["training_args"]["save_dir"],
+                best_stats["training_args"]["seed"],
+                best_stats["best_epoch"],
+            )
+        }
+    )
 
     if "path" in best_stats["training_args"]:
         dataset_key = "path"
@@ -76,11 +91,14 @@ def run_collect_results(save_dir, one_line, metric='onlyDEmeans'):
         dataset_key = "dataset_path"
 
     if one_line:
-        print("{:>40}: [{:.3f}, {:.3f}, {:.3f}, {:.3f}] ({:.3f}, {:.3f})".format(
-            best_stats["training_args"][dataset_key],
-            *best_stats["best_stats"]["ood"],
-            np.mean(best_stats["best_stats"]["ood"]),
-            best_stats["best_stats"]["disentanglement"]))
+        print(
+            "{:>40}: [{:.3f}, {:.3f}, {:.3f}, {:.3f}] ({:.3f}, {:.3f})".format(
+                best_stats["training_args"][dataset_key],
+                *best_stats["best_stats"]["ood"],
+                np.mean(best_stats["best_stats"]["ood"]),
+                best_stats["best_stats"]["disentanglement"]
+            )
+        )
 
     else:
         pprint.pprint(best_stats, indent=2)
@@ -89,9 +107,9 @@ def run_collect_results(save_dir, one_line, metric='onlyDEmeans'):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Collect results.')
-    parser.add_argument('--save_dir', type=str, required=True)
-    parser.add_argument('--one_line', action="store_true")
-    parser.add_argument('--metric', type=str, default='onlyDEmeans')
+    parser = argparse.ArgumentParser(description="Collect results.")
+    parser.add_argument("--save_dir", type=str, required=True)
+    parser.add_argument("--one_line", action="store_true")
+    parser.add_argument("--metric", type=str, default="onlyDEmeans")
     args = parser.parse_args()
     run_collect_results(args.save_dir, args.one_line, args.metric)

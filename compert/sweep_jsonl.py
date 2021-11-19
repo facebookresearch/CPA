@@ -20,6 +20,7 @@ if __name__ == "__main__":
         array_parallelism=512,
         cpus_per_task=4,
         comment="Deadline nat biotech this week",
-        partition="priority")
+        partition="priority",
+    )
 
     executor.map_array(train_compert, commands)
