@@ -26,7 +26,7 @@ matplotlib.rc("ytick", labelsize=FONT_SIZE)
 matplotlib.rc("xtick", labelsize=FONT_SIZE)
 
 
-class CompertVisuals:
+class CPAVisuals:
     """
     A wrapper for automatic plotting CompPert latent embeddings and dose-response
     curve. Sets up prefix for all files and default dictionaries for atomic

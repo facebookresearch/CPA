@@ -83,7 +83,7 @@ def get_best_plots(model_name, path="./results/plots"):
 
     # Setting up a variabel for automatic plotting. The plots also could be
     # used separately.
-    cpa_plots = CompertVisuals(
+    cpa_plots = CPAVisuals(
         cpa_api, fileprefix=plots_prefix, perts_palette=specs.perts_palette
     )
 

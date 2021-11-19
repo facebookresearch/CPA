@@ -76,9 +76,9 @@ from cpa.api import API
 
 help(API)
 
-from cpa.plotting import CompertVisuals
+from cpa.plotting import CPAVisuals
 
-help(CompertVisuals)
+help(CPAVisuals)
 
 ```
 

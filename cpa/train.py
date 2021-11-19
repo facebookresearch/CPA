@@ -186,7 +186,7 @@ def prepare_cpa(args, state_dict=None):
     )
     # if args["gnn_model"] is not None:
     #     drug_embeddings = Drugemb(
-    #         dim=256,  # TODO: This is set only in Compert model
+    #         dim=256,  # TODO: This is set only in CPA model
     #         gnn_model=args["gnn_model"],
     #         graph_feats_shape=datasets["training"].graph_feats_shape,
     #         idx_wo_smiles=datasets["training"].idx_wo_smiles,
