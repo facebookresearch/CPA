@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append("../")
-import cpa as cpa
+import cpa
 import scanpy as sc
 import scvi
 from cpa.helper import rank_genes_groups_by_cov
