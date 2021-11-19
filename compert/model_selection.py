@@ -10,16 +10,16 @@ from os import listdir, walk
 from os.path import isfile, join
 from pathlib import Path
 
-import compert.plotting as pl
+import cpa.plotting as pl
 import numpy as np
 import pandas as pd
 import scanpy as sc
 import torch
-from compert.api import *
-from compert.data import Dataset, load_dataset_splits
-from compert.model import ComPert
-from compert.plotting import *
-from compert.train import evaluate, prepare_compert
+from cpa.api import *
+from cpa.data import Dataset, load_dataset_splits
+from cpa.model import ComPert
+from cpa.plotting import *
+from cpa.train import evaluate, prepare_cpa
 
 
 class DatasetSpecs:
@@ -76,54 +76,54 @@ def get_best_plots(model_name, path="./results/plots"):
     pretty_history.plot_metrics(epoch_min=100)
 
     # Load the dataset and model pre-trained weights
-    autoencoder, datasets = prepare_compert(args, state_dict=state)
+    autoencoder, datasets = prepare_cpa(args, state_dict=state)
 
     # Setting a variable for the API
-    compert_api = ComPertAPI(datasets, autoencoder)
+    cpa_api = ComPertAPI(datasets, autoencoder)
 
     # Setting up a variabel for automatic plotting. The plots also could be
     # used separately.
-    compert_plots = CompertVisuals(
-        compert_api, fileprefix=plots_prefix, perts_palette=specs.perts_palette
+    cpa_plots = CompertVisuals(
+        cpa_api, fileprefix=plots_prefix, perts_palette=specs.perts_palette
     )
 
     # Plot latent space
-    perts_anndata = compert_api.get_drug_embeddings()
-    covars_anndata = compert_api.get_covars_embeddings()
-    compert_plots.plot_latent_embeddings(
-        compert_api.emb_perts, kind="perturbations", show_text=True
+    perts_anndata = cpa_api.get_drug_embeddings()
+    covars_anndata = cpa_api.get_covars_embeddings()
+    cpa_plots.plot_latent_embeddings(
+        cpa_api.emb_perts, kind="perturbations", show_text=True
     )
-    compert_plots.plot_latent_embeddings(compert_api.emb_covars, kind="covars")
+    cpa_plots.plot_latent_embeddings(cpa_api.emb_covars, kind="covars")
 
     # Plot latent dose response
-    latent_response = compert_api.latent_dose_response(perturbations=None)
-    compert_plots.plot_contvar_response(
+    latent_response = cpa_api.latent_dose_response(perturbations=None)
+    cpa_plots.plot_contvar_response(
         latent_response,
         postfix="latent",
-        var_name=compert_api.perturbation_key,
+        var_name=cpa_api.perturbation_key,
         title_name="Latent dose response",
     )
 
     # Plot latent dose response 2D
     if not (specs.perturbations_pair is None):
-        latent_dose_2D = compert_api.latent_dose_response2D(
+        latent_dose_2D = cpa_api.latent_dose_response2D(
             specs.perturbations_pair, n_points=100
         )
-        compert_plots.plot_contvar_response2D(
+        cpa_plots.plot_contvar_response2D(
             latent_dose_2D, postfix="latent2D", title_name="Latent dose-response"
         )
 
-        reconstructed_response2D = compert_api.get_response2D(
-            datasets, specs.perturbations_pair, compert_api.unique_сovars[0]
+        reconstructed_response2D = cpa_api.get_response2D(
+            datasets, specs.perturbations_pair, cpa_api.unique_сovars[0]
         )
-        compert_plots.plot_contvar_response2D(
+        cpa_plots.plot_contvar_response2D(
             reconstructed_response2D,
             title_name="Reconstructed dose-response  2D",
             logdose=False,
             postfix="reconstructed-dose-response2D",
             # xlims=(-3, 0), ylims=(-3, 0)
         )
-        compert_plots.plot_contvar_response2D(
+        cpa_plots.plot_contvar_response2D(
             reconstructed_response2D,
             title_name="Reconstructed dose-response 2D",
             logdose=True,
@@ -133,33 +133,33 @@ def get_best_plots(model_name, path="./results/plots"):
         )
 
         df_pred = pl.plot_uncertainty_comb_dose(
-            compert_api=compert_api,
+            cpa_api=cpa_api,
             cov=specs.selected_cov,
             pert=f"{specs.perturbations_pair[0]}+{specs.perturbations_pair[1]}",
             N=51,
             cond_key="treatment",
-            filename=f"{compert_plots.fileprefix}_uncertainty_{specs.perturbations_pair[0]}_{specs.perturbations_pair[1]}.png",
+            filename=f"{cpa_plots.fileprefix}_uncertainty_{specs.perturbations_pair[0]}_{specs.perturbations_pair[1]}.png",
             metric="cosine",
         )
     uncert_list = []
     for i, drug in enumerate(specs.selected_drugs):
         uncert_list.append(
             pl.plot_uncertainty_dose(
-                compert_api,
+                cpa_api,
                 cov=specs.selected_cov,
                 pert=drug,
                 N=51,
-                measured_points=compert_api.measured_points["all"],
+                measured_points=cpa_api.measured_points["all"],
                 cond_key="condition",
                 log=True,
                 metric="cosine",
-                filename=f"{compert_plots.fileprefix}_uncertainty_{drug}.png",
+                filename=f"{cpa_plots.fileprefix}_uncertainty_{drug}.png",
             )
         )
     df_uncert = pd.concat(uncert_list)
 
     selected_drug = specs.selected_drugs[0]
-    logscale_labels = compert_api.measured_points["all"][specs.selected_cov][
+    logscale_labels = cpa_api.measured_points["all"][specs.selected_cov][
         selected_drug
     ]
 
@@ -180,7 +180,7 @@ def get_best_plots(model_name, path="./results/plots"):
             response_name=unc,
             title_name="",
             use_ref_response=True,
-            col_dict=compert_plots.perts_palette,
+            col_dict=cpa_plots.perts_palette,
             plot_vertical=False,
             f1=4,
             f2=3.3,
@@ -193,11 +193,11 @@ def get_best_plots(model_name, path="./results/plots"):
 
     # # Plot reconstructed dose response
     if specs.plot_ref:
-        df_reference = compert_api.get_response_reference(datasets)
-        reconstructed_response = compert_api.get_response(datasets)
+        df_reference = cpa_api.get_response_reference(datasets)
+        reconstructed_response = cpa_api.get_response(datasets)
         # df_reference = df_reference.replace('training_treated', 'train')
         for gene in specs.target_genes:
-            compert_plots.plot_contvar_response(
+            cpa_plots.plot_contvar_response(
                 reconstructed_response,
                 df_ref=df_reference,
                 postfix="reconstructed-dose-response",
@@ -206,10 +206,10 @@ def get_best_plots(model_name, path="./results/plots"):
                 response_name=gene,
                 xlabelname="dose",
                 logdose=False,
-                palette=compert_plots.perts_palette,
+                palette=cpa_plots.perts_palette,
                 title_name="",
             )
-            compert_plots.plot_contvar_response(
+            cpa_plots.plot_contvar_response(
                 reconstructed_response,
                 postfix="log10-reconstructed-dose-response",
                 df_ref=df_reference,
@@ -218,7 +218,7 @@ def get_best_plots(model_name, path="./results/plots"):
                 response_name=gene,
                 xlabelname="log10-dose",
                 logdose=True,
-                palette=compert_plots.perts_palette,
+                palette=cpa_plots.perts_palette,
                 measured_points=logscale_labels,
                 title_name="",
             )

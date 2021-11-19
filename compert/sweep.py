@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
 import submitit
-from compert.train import parse_arguments, train_compert
+from cpa.train import parse_arguments, train_cpa
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -22,4 +22,4 @@ if __name__ == "__main__":
         these_args["seed"] = seed
         commands.append(these_args)
 
-    executor.map_array(train_compert, commands)
+    executor.map_array(train_cpa, commands)

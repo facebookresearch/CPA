@@ -11,7 +11,7 @@ from typing import Union
 import pandas as pd
 import scanpy as sc
 import scipy
-from compert.helper import rank_genes_groups
+from cpa.helper import rank_genes_groups
 from sklearn.preprocessing import OneHotEncoder
 
 

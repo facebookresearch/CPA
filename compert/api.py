@@ -9,13 +9,13 @@ import sys
 import time
 from collections import defaultdict
 
-import compert
+import cpa
 import numpy as np
 import pandas as pd
 import scanpy as sc
 import torch
-from compert.data import SubDataset, load_dataset_splits
-from compert.train import evaluate, prepare_compert
+from cpa.data import SubDataset, load_dataset_splits
+from cpa.train import evaluate, prepare_cpa
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_distances, euclidean_distances
 from tqdm import tqdm
@@ -107,7 +107,7 @@ class ComPertAPI:
             self.args = args
 
         # pprint.pprint(self.args)
-        self.model, self.datasets = prepare_compert(self.args, state_dict=state)
+        self.model, self.datasets = prepare_cpa(self.args, state_dict=state)
         if not (pretrained is None) and (not only_parameters):
             self.model.history = self.history
         self.args["save_dir"] = save_dir
@@ -1437,12 +1437,12 @@ def linear_interp(y1, y2, x1, x2, x):
     return y
 
 
-def evaluate_r2_benchmark(compert_api, datasets, pert_category, pert_category_list):
+def evaluate_r2_benchmark(cpa_api, datasets, pert_category, pert_category_list):
     scores = pd.DataFrame(
         columns=[
-            compert_api.covars_key,
-            compert_api.perturbation_key,
-            compert_api.dose_key,
+            cpa_api.covars_key,
+            cpa_api.perturbation_key,
+            cpa_api.dose_key,
             "R2_mean",
             "R2_mean_DE",
             "R2_var",

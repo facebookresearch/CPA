@@ -13,7 +13,7 @@ import scanpy as sc
 import seaborn as sns
 import torch
 from adjustText import adjust_text
-from compert.api import ComPertAPI, get_reference_from_combo
+from cpa.api import ComPertAPI, get_reference_from_combo
 from sklearn.decomposition import KernelPCA
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
@@ -35,7 +35,7 @@ class CompertVisuals:
 
     def __init__(
         self,
-        compert,
+        cpa,
         fileprefix=None,
         perts_palette=None,
         covars_palette=None,
@@ -44,7 +44,7 @@ class CompertVisuals:
         """
         Parameters
         ----------
-        compert : CompPertAPI
+        cpa : CompPertAPI
             Variable from ComPertAPI class.
         fileprefix : str, optional (default: None)
             Prefix (with path) to the filename to save all embeddings in a
@@ -61,13 +61,13 @@ class CompertVisuals:
 
         self.fileprefix = fileprefix
 
-        self.perturbation_key = compert.perturbation_key
-        self.dose_key = compert.dose_key
-        self.covariate_keys = compert.covariate_keys
-        self.measured_points = compert.measured_points
+        self.perturbation_key = cpa.perturbation_key
+        self.dose_key = cpa.dose_key
+        self.covariate_keys = cpa.covariate_keys
+        self.measured_points = cpa.measured_points
 
-        self.unique_perts = compert.unique_perts
-        self.unique_covars = compert.unique_covars
+        self.unique_perts = cpa.unique_perts
+        self.unique_covars = cpa.unique_covars
 
         if perts_palette is None:
             self.perts_palette = dict(
@@ -647,7 +647,7 @@ def plot_dose_response(
 
 
 def plot_uncertainty_comb_dose(
-    compert_api,
+    cpa_api,
     cov,
     pert,
     N=11,
@@ -670,7 +670,7 @@ def plot_uncertainty_comb_dose(
 
     Params
     ------
-    compert_api
+    cpa_api
         Api object for the model class.
     cov : dict
         Name of covariate.
@@ -695,7 +695,7 @@ def plot_uncertainty_comb_dose(
         pd.DataFrame of uncertainty estimations.
     """
 
-    cov_name = "_".join([cov[cov_key] for cov_key in compert_api.covariate_keys])
+    cov_name = "_".join([cov[cov_key] for cov_key in cpa_api.covariate_keys])
     df_list = []
     for i in np.round(np.linspace(0, 1, N), decimals=2):
         for j in np.round(np.linspace(0, 1, N), decimals=2):
@@ -717,7 +717,7 @@ def plot_uncertainty_comb_dose(
             uncert_eucl_,
             closest_cond_cos_,
             closest_cond_eucl_,
-        ) = compert_api.compute_uncertainty(
+        ) = cpa_api.compute_uncertainty(
             cov=cov, pert=df_pred.iloc[i]["condition"], dose=df_pred.iloc[i]["dose_val"]
         )
         uncert_cos.append(uncert_cos_)
@@ -779,7 +779,7 @@ def plot_uncertainty_comb_dose(
 
 
 def plot_uncertainty_dose(
-    compert_api,
+    cpa_api,
     cov,
     pert,
     N=11,
@@ -795,7 +795,7 @@ def plot_uncertainty_dose(
 
     Params
     ------
-    compert_api
+    cpa_api
         Api object for the model class.
     cov : str
         Name of covariate.
@@ -833,7 +833,7 @@ def plot_uncertainty_dose(
             min_dose = 0
         N_val = np.round(np.linspace(min_dose, 1.0, N), decimals=3)
 
-    cov_name = "_".join([cov[cov_key] for cov_key in compert_api.covariate_keys])
+    cov_name = "_".join([cov[cov_key] for cov_key in cpa_api.covariate_keys])
 
     for i in N_val:
         df_list.append({"covariates": cov_name, "condition": pert, "dose_val": repr(i)})
@@ -850,7 +850,7 @@ def plot_uncertainty_dose(
             uncert_eucl_,
             closest_cond_cos_,
             closest_cond_eucl_,
-        ) = compert_api.compute_uncertainty(
+        ) = cpa_api.compute_uncertainty(
             cov=cov, pert=df_pred.iloc[i]["condition"], dose=df_pred.iloc[i]["dose_val"]
         )
         uncert_cos.append(uncert_cos_)

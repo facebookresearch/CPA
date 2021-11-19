@@ -1,10 +1,10 @@
 import sys
 
 sys.path.append("../")
-import compert as cpa
+import cpa as cpa
 import scanpy as sc
 import scvi
-from compert.helper import rank_genes_groups_by_cov
+from cpa.helper import rank_genes_groups_by_cov
 
 
 def sim_adata():
@@ -24,7 +24,7 @@ def sim_adata():
 if __name__ == "__main__":
     adata = sim_adata()
 
-    compert_api = cpa.api.ComPertAPI(
+    cpa_api = cpa.api.ComPertAPI(
         adata,
         pretrained=None,
         perturbation_key="condition",
@@ -36,4 +36,4 @@ if __name__ == "__main__":
     )
 
     print("\nStart training")
-    compert_api.train(max_epochs=1)
+    cpa_api.train(max_epochs=1)

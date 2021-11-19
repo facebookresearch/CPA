@@ -4,7 +4,7 @@ import json
 import sys
 
 import submitit
-from compert.train import parse_arguments, train_compert
+from cpa.train import parse_arguments, train_cpa
 
 if __name__ == "__main__":
     json_file = sys.argv[1]
@@ -23,4 +23,4 @@ if __name__ == "__main__":
         partition="priority",
     )
 
-    executor.map_array(train_compert, commands)
+    executor.map_array(train_cpa, commands)

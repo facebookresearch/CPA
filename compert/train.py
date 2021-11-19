@@ -8,8 +8,8 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-from compert.data import load_dataset_splits
-from compert.model import ComPert
+from cpa.data import load_dataset_splits
+from cpa.model import ComPert
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, make_scorer, r2_score
 from sklearn.model_selection import cross_val_score
@@ -169,7 +169,7 @@ def evaluate(autoencoder, datasets):
     return evaluation_stats
 
 
-def prepare_compert(args, state_dict=None):
+def prepare_cpa(args, state_dict=None):
     """
     Instantiates autoencoder and dataset to run an experiment.
     """
@@ -214,12 +214,12 @@ def prepare_compert(args, state_dict=None):
     return autoencoder, datasets
 
 
-def train_compert(args, return_model=False):
+def train_cpa(args, return_model=False):
     """
     Trains a ComPert autoencoder
     """
 
-    autoencoder, datasets = prepare_compert(args)
+    autoencoder, datasets = prepare_cpa(args)
 
     datasets.update(
         {
@@ -322,7 +322,7 @@ def parse_arguments():
     parser.add_argument("--doser_type", type=str, default="sigm")
     parser.add_argument("--decoder_activation", type=str, default="linear")
 
-    # ComPert arguments (see set_hparams_() in compert.model.ComPert)
+    # ComPert arguments (see set_hparams_() in cpa.model.ComPert)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--hparams", type=str, default="")
 
@@ -334,10 +334,10 @@ def parse_arguments():
 
     # output folder
     parser.add_argument("--save_dir", type=str, required=True)
-    # number of trials when executing compert.sweep
+    # number of trials when executing cpa.sweep
     parser.add_argument("--sweep_seeds", type=int, default=200)
     return dict(vars(parser.parse_args()))
 
 
 if __name__ == "__main__":
-    train_compert(parse_arguments())
+    train_cpa(parse_arguments())
