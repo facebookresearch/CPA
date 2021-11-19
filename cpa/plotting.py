@@ -552,9 +552,9 @@ def plot_dose_response(
             df_plt = df
     else:
         df_plt = df
+    df_plt = df_plt.reset_index()
 
     atomic_drugs = np.unique(df[perturbation_key].values)
-
     if palette is None:
         current_palette = get_palette(len(list(atomic_drugs)))
 
@@ -590,7 +590,7 @@ def plot_dose_response(
             data=df_ref,
             ax=ax,
         )
-
+        sns.despine()
         ax.legend_.remove()
     else:
         sns.lineplot(
@@ -602,7 +602,7 @@ def plot_dose_response(
             ax=ax,
         )
         ax.legend(loc="upper right", bbox_to_anchor=bbox, fontsize=fontsize)
-
+        sns.despine()
     if not (title_name is None):
         ax.set_title(title_name, fontsize=fontsize, fontweight="bold")
     ax.grid("off")
