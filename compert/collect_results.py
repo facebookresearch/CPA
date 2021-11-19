@@ -1,11 +1,13 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import os
-import json
-import pprint
 import argparse
+import json
+import os
+import pprint
+
 import numpy as np
 from model_selection import *
+
 
 def run_collect_results(save_dir, one_line, metric='onlyDEmeans'):
     records = []

@@ -1,23 +1,21 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import os
-import json
 import argparse
-
-import torch
-import numpy as np
+import json
+import os
+import time
 from collections import defaultdict
 
+import numpy as np
+import torch
 from compert.data import load_dataset_splits
 from compert.model import ComPert
-
-from sklearn.metrics import r2_score, balanced_accuracy_score, make_scorer
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import balanced_accuracy_score, make_scorer, r2_score
 from sklearn.model_selection import cross_val_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 
-import time
 
 def pjson(s):
     """

@@ -1,0 +1,11 @@
+adjustText
+argparse
+matplotlib
+numpy
+pandas
+scanpy
+scipy
+seaborn
+sklearn
+submitit
+torch

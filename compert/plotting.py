@@ -1,25 +1,22 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import numpy as np
-import sys
 import pprint
-
-import torch
-import scanpy as sc
-
+import re
+import sys
 from collections import defaultdict
+
+import matplotlib.font_manager
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scanpy as sc
+import seaborn as sns
+import torch
+from adjustText import adjust_text
+from compert.api import ComPertAPI, get_reference_from_combo
+from sklearn.decomposition import KernelPCA
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.decomposition import KernelPCA
-import seaborn as sns
-import pandas as pd
-import matplotlib.pyplot as plt
-import re
-import seaborn as sns
-from adjustText import adjust_text
-import matplotlib.font_manager
-from compert.api import ComPertAPI, get_reference_from_combo
-
 
 FONT_SIZE = 13
 font = {'size': FONT_SIZE}
@@ -1079,8 +1076,9 @@ def plot_similarity(
         save_to_file(sns_plot, file_name, file_format)
 
 
-from scipy import stats, sparse
+from scipy import sparse, stats
 from sklearn.metrics import r2_score
+
 
 def mean_plot(
     adata,

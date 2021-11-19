@@ -1,8 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
 import submitit
-from compert.train import train_compert, parse_arguments
-
+from compert.train import parse_arguments, train_compert
 
 if __name__ == "__main__":
     args = parse_arguments()

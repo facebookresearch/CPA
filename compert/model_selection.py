@@ -1,33 +1,25 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import os
 import json
-
-
-import numpy as np
-import sys
-
+import os
 import pprint
-import torch
-import pandas as pd
 import re
+import sys
+import time
+from os import listdir, walk
+from os.path import isfile, join
+from pathlib import Path
 
-from compert.data import Dataset, load_dataset_splits
-from compert.train import prepare_compert, evaluate
 import compert.plotting as pl
-
+import numpy as np
+import pandas as pd
+import scanpy as sc
+import torch
+from compert.api import *
+from compert.data import Dataset, load_dataset_splits
 from compert.model import ComPert
 from compert.plotting import *
-from compert.api import *
-import scanpy as sc
-import numpy as np
-
-import time
-
-from os import listdir
-from os.path import isfile, join
-from os import walk
-from pathlib import Path
+from compert.train import evaluate, prepare_compert
 
 
 class DatasetSpecs:

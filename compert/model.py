@@ -1,9 +1,10 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
 import json
-import torch
-import numpy as np
 from typing import Union
+
+import numpy as np
+import torch
 
 
 class NBLoss(torch.nn.Module):

@@ -1,18 +1,19 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
 import warnings
-import torch
 
 import numpy as np
+import torch
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-import scanpy as sc
-import pandas as pd
-
-from sklearn.preprocessing import OneHotEncoder
 from typing import Union
+
+import pandas as pd
+import scanpy as sc
 import scipy
 from compert.helper import rank_genes_groups
+from sklearn.preprocessing import OneHotEncoder
+
 
 def ranks_to_df(data, key='rank_genes_groups'):
     """Converts an `sc.tl.rank_genes_groups` result into a MultiIndex dataframe.

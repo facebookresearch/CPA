@@ -1,12 +1,15 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import scanpy as sc
-import pandas as pd
-import numpy as np
 import warnings
+
+import numpy as np
+import pandas as pd
+import scanpy as sc
+
 warnings.filterwarnings("ignore")
 
 import sys
+
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 warnings.simplefilter(action="ignore", category=FutureWarning)
