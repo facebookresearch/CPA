@@ -18,7 +18,7 @@ from sklearn.decomposition import KernelPCA
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
 
-FONT_SIZE = 13
+FONT_SIZE = 10
 font = {"size": FONT_SIZE}
 
 matplotlib.rc("font", **font)
@@ -1285,18 +1285,18 @@ class CPAHistory:
     A wrapper for automatic plotting history of CPA model..
     """
 
-    def __init__(self, history, fileprefix=None):
+    def __init__(self, cpa_api, fileprefix=None):
         """
         Parameters
         ----------
-        history : dict
-            Dictionary of CPA history.
+        cpa_api : dict
+            cpa api instance
         fileprefix : str, optional (default: None)
             Prefix (with path) to the filename to save all embeddings in a
             standartized manner. If None, embeddings are not saved to file.
         """
-
-        self.time = history["elapsed_time_min"]
+        self.history = cpa_api.history
+        self.time = self.history["elapsed_time_min"]
         self.losses_list = [
             "loss_reconstruction",
             "loss_adv_drugs",
@@ -1307,27 +1307,28 @@ class CPAHistory:
         subset_keys = ["epoch"] + self.losses_list + self.penalties_list
 
         self.losses = pd.DataFrame(
-            dict((k, history[k]) for k in subset_keys if k in history)
+            dict((k, self.history[k]) for k in subset_keys if k in self.history)
         )
 
         self.header = ["mean", "mean_DE", "var", "var_DE"]
 
         self.metrics = pd.DataFrame(columns=["epoch", "split"] + self.header)
         for split in ["training", "test", "ood"]:
-            df_split = pd.DataFrame(np.array(history[split]), columns=self.header)
+            df_split = pd.DataFrame(np.array(self.history[split]), columns=self.header)
             df_split["split"] = split
-            df_split["epoch"] = history["stats_epoch"]
+            df_split["epoch"] = self.history["stats_epoch"]
             self.metrics = pd.concat([self.metrics, df_split])
-
+        self.covariate_names = list(cpa_api.datasets["training"].covariate_names)
         self.disent = pd.DataFrame(
             dict(
-                (k, history[k])
-                for k in ["perturbation disentanglement", "covariate disentanglement"]
-                if k in history
+                (k, self.history[k])
+                for k in 
+                ['perturbation disentanglement'] 
+                + [f'{cov} disentanglement' for cov in self.covariate_names]
+                if k in self.history
             )
         )
-        self.disent["epoch"] = history["stats_epoch"]
-
+        self.disent["epoch"] = self.history["stats_epoch"]
         self.fileprefix = fileprefix
 
     def print_time(self):
@@ -1347,7 +1348,7 @@ class CPAHistory:
             else:
                 filename = f"{self.fileprefix}_history_losses.png"
 
-        fig, ax = plt.subplots(1, 4, sharex=True, sharey=False, figsize=(12, 2.0))
+        fig, ax = plt.subplots(1, 4, sharex=True, sharey=False, figsize=(12, 3))
 
         i = 0
         for i in range(4):
@@ -1361,12 +1362,13 @@ class CPAHistory:
                     self.losses["epoch"].values, self.losses[self.penalties_list].values
                 )
                 ax[i].set_title("Penalties", fontweight="bold")
+        sns.despine()
         plt.tight_layout()
 
         if filename:
             save_to_file(fig, filename)
 
-    def plot_metrics(self, epoch_min=0, filename=None):
+    def plot_r2_metrics(self, epoch_min=0, filename=None):
         """
         Parameters
         ----------
@@ -1387,7 +1389,7 @@ class CPAHistory:
         col_dict = dict(
             zip(["training", "test", "ood"], ["#377eb8", "#4daf4a", "#e41a1c"])
         )
-        fig, axs = plt.subplots(3, 2, sharex=True, sharey=False, figsize=(7, 7.0))
+        fig, axs = plt.subplots(2, 2, sharex=True, sharey=False, figsize=(7, 5))
         ax = plt.gca()
         i = 0
         for i1 in range(2):
@@ -1404,26 +1406,54 @@ class CPAHistory:
                 )
                 axs[i1, i2].set_title(self.header[i], fontweight="bold")
                 i += 1
+        sns.despine()
+        plt.tight_layout()
+        if filename:
+            save_to_file(fig, filename)
 
+    def plot_disentanglement_metrics(self, epoch_min=0, filename=None):
+        """
+        Parameters
+        ----------
+        epoch_min : int (default: 0)
+            Epoch from which to show metrics history plot. Done for readability.
+
+        filename : str (default: None)
+            Name of the file to save the plot. If None, will automatically
+            generate name from prefix file.
+        """
+        if filename is None:
+            if self.fileprefix is None:
+                filename = None
+            else:
+                filename = f"{self.fileprefix}_history_metrics.png"
+
+        fig, axs = plt.subplots(
+            1, 
+            1+len(self.covariate_names), 
+            sharex=True, 
+            sharey=False, 
+            figsize=(2 + 4*(len(self.covariate_names)), 3)
+        )
+
+        ax = plt.gca()
         sns.lineplot(
             data=self.disent[self.disent["epoch"] > epoch_min],
             x="epoch",
             y="perturbation disentanglement",
             legend=False,
-            ax=axs[2, 0],
+            ax=axs[0],
         )
-        axs[2, 0].set_title("perturbation disentanglement", fontweight="bold")
+        axs[0].set_title("perturbation disentanglement", fontweight="bold")
 
-        # sns.lineplot(
-        #     data=self.disent[self.disent['epoch'] > epoch_min],
-        #     x="epoch",
-        #     y="covariate disentanglement",
-        #     legend=False,
-        #     ax=axs[2, 1]
-        # )
-        # axs[2, 1].set_title("covariate disentanglement", fontweight="bold")
-
-        plt.tight_layout()
-
-        if filename:
-            save_to_file(fig, filename)
+        for i, cov in enumerate(self.covariate_names):
+            sns.lineplot(
+                data=self.disent[self.disent['epoch'] > epoch_min],
+                x="epoch",
+                y=f"{cov} disentanglement",
+                legend=False,
+                ax=axs[1+i]
+            )
+            axs[1+i].set_title(f"{cov} disentanglement", fontweight="bold")
+        fig.tight_layout()
+        sns.despine()

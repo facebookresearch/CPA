@@ -158,13 +158,15 @@ def evaluate(autoencoder, datasets):
             "optimal for perturbations": 1 / datasets["test"].num_drugs
             if datasets["test"].num_drugs > 0
             else None,
-            "covariate disentanglement": stats_disent_cov,
-            "optimal for covariates": [
-                1 / num for num in datasets["test"].num_covariates
-            ]
-            if datasets["test"].num_covariates[0] > 0
-            else None,
         }
+        if len(stats_disent_cov) > 0:
+            for i in range(len(stats_disent_cov)):
+                evaluation_stats[
+                    f"{list(datasets['test'].covariate_names)[i]} disentanglement"
+                ] = stats_disent_cov[i]
+                evaluation_stats[
+                    f"optimal for {list(datasets['test'].covariate_names)[i]}"
+                ] = 1 / datasets["test"].num_covariates[i]
     autoencoder.train()
     return evaluation_stats
 
