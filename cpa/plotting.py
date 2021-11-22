@@ -1305,24 +1305,26 @@ class CPAHistory:
         )
 
         self.header = ["mean", "mean_DE", "var", "var_DE"]
-
-        self.metrics = pd.DataFrame(columns=["epoch", "split"] + self.header)
-        for split in ["training", "test", "ood"]:
-            df_split = pd.DataFrame(np.array(self.history[split]), columns=self.header)
-            df_split["split"] = split
-            df_split["epoch"] = self.history["stats_epoch"]
-            self.metrics = pd.concat([self.metrics, df_split])
-        self.covariate_names = list(cpa_api.datasets["training"].covariate_names)
-        self.disent = pd.DataFrame(
-            dict(
-                (k, self.history[k])
-                for k in 
-                ['perturbation disentanglement'] 
-                + [f'{cov} disentanglement' for cov in self.covariate_names]
-                if k in self.history
+        self.eval_metrics = False
+        if 'perturbation disentanglement' in list (self.history):               #check that metrics were evaluated
+            self.eval_metrics = True
+            self.metrics = pd.DataFrame(columns=["epoch", "split"] + self.header)
+            for split in ["training", "test", "ood"]:
+                df_split = pd.DataFrame(np.array(self.history[split]), columns=self.header)
+                df_split["split"] = split
+                df_split["epoch"] = self.history["stats_epoch"]
+                self.metrics = pd.concat([self.metrics, df_split])
+            self.covariate_names = list(cpa_api.datasets["training"].covariate_names)
+            self.disent = pd.DataFrame(
+                dict(
+                    (k, self.history[k])
+                    for k in 
+                    ['perturbation disentanglement'] 
+                    + [f'{cov} disentanglement' for cov in self.covariate_names]
+                    if k in self.history
+                )
             )
-        )
-        self.disent["epoch"] = self.history["stats_epoch"]
+            self.disent["epoch"] = self.history["stats_epoch"]
         self.fileprefix = fileprefix
 
     def print_time(self):
@@ -1373,6 +1375,9 @@ class CPAHistory:
             Name of the file to save the plot. If None, will automatically
             generate name from prefix file.
         """
+
+        assert self.eval_metrics == True, 'The evaluation metrics were not computed'
+
         if filename is None:
             if self.fileprefix is None:
                 filename = None
@@ -1416,6 +1421,8 @@ class CPAHistory:
             Name of the file to save the plot. If None, will automatically
             generate name from prefix file.
         """
+        assert self.eval_metrics == True, 'The evaluation metrics were not computed'
+        
         if filename is None:
             if self.fileprefix is None:
                 filename = None

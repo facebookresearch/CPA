@@ -221,6 +221,7 @@ class API:
         self,
         max_epochs=1,
         checkpoint_freq=20,
+        run_eval=False,
         max_minutes=60,
         filename="model.pt",
         batch_size=None,
@@ -312,16 +313,22 @@ class API:
                 )
 
                 if (epoch % checkpoint_freq) == 0 or stop:
-                    evaluation_stats = evaluate(self.model, self.datasets)
-                    for key, val in evaluation_stats.items():
-                        if not (key in self.model.history.keys()):
-                            self.model.history[key] = []
-                        self.model.history[key].append(val)
-                    self.model.history["stats_epoch"].append(epoch)
+                    if run_eval == True:
+                        evaluation_stats = evaluate(self.model, self.datasets)
+                        for key, val in evaluation_stats.items():
+                            if not (key in self.model.history.keys()):
+                                self.model.history[key] = []
+                            self.model.history[key].append(val)
+                        self.model.history["stats_epoch"].append(epoch)
+                        stop = stop or self.model.early_stopping(
+                            np.mean(evaluation_stats["test"])
+                        )
+                    else:
+                        stop = stop or self.model.early_stopping(
+                            np.mean(epoch_training_stats["test"])
+                        )
+                        evaluation_stats = None
 
-                    stop = stop or self.model.early_stopping(
-                        np.mean(evaluation_stats["test"])
-                    )
                     if stop:
                         self.save(f"{save_dir}{filename}")
                         pprint.pprint(
@@ -335,6 +342,7 @@ class API:
 
                         print(f"Stop epoch: {epoch}")
                         break
+
 
         except KeyboardInterrupt:
             self.save(f"{save_dir}{filename}")

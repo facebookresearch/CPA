@@ -131,7 +131,7 @@ def evaluate_r2(autoencoder, dataset, genes_control):
 def evaluate(autoencoder, datasets):
     """
     Measure quality metrics using `evaluate()` on the training, test, and
-    out-of-distributiion (ood) splits.
+    out-of-distribution (ood) splits.
     """
 
     autoencoder.eval()
