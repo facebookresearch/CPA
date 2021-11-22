@@ -338,7 +338,7 @@ class SubDataset:
 
 
 def load_dataset_splits(
-    dataset_path: str,
+    data: str,
     perturbation_key: Union[str, None],
     dose_key: Union[str, None],
     covariate_keys: Union[list, str, None],
@@ -348,7 +348,7 @@ def load_dataset_splits(
 ):
 
     dataset = Dataset(
-        dataset_path, perturbation_key, dose_key, covariate_keys, split_key, control
+        data, perturbation_key, dose_key, covariate_keys, split_key, control
     )
 
     splits = {

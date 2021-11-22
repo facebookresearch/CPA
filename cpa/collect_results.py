@@ -88,7 +88,7 @@ def run_collect_results(save_dir, one_line, metric="onlyDEmeans"):
     if "path" in best_stats["training_args"]:
         dataset_key = "path"
     else:
-        dataset_key = "dataset_path"
+        dataset_key = "data"
 
     if one_line:
         print(

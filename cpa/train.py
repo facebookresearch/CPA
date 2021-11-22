@@ -179,7 +179,7 @@ def prepare_cpa(args, state_dict=None):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     datasets = load_dataset_splits(
-        args["dataset_path"],
+        args["data"],
         args["perturbation_key"],
         args["dose_key"],
         args["covariate_keys"],
@@ -314,7 +314,7 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(description="Drug combinations.")
     # dataset arguments
-    parser.add_argument("--dataset_path", type=str, required=True)
+    parser.add_argument("--data", type=str, required=True)
     parser.add_argument("--perturbation_key", type=str, default="condition")
     parser.add_argument("--control", type=str, default=None)
     parser.add_argument("--dose_key", type=str, default="dose_val")

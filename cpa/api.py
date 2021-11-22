@@ -24,7 +24,7 @@ class API:
 
     def __init__(
         self,
-        dataset_path,
+        data,
         covariate_keys=["cell_type"],
         split_key="split",
         perturbation_key="condition",
@@ -44,7 +44,7 @@ class API:
         """
         Parameters
         ----------
-        dataset_path : str or `AnnData`
+        data : str or `AnnData`
             AnndData object or a full path to the file in the .h5ad format.
         covariate_keys : list (default: ['cell_type'])
             List of names in the .obs of AnnData that should be used as
@@ -89,7 +89,7 @@ class API:
                 pretrained, map_location=torch.device(device)
             )
             self.args = self.used_args
-            self.args["dataset_path"] = dataset_path
+            self.args["data"] = data
             self.args["covariate_keys"] = covariate_keys
             self.args["device"] = device
             self.args["control"] = control

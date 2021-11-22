@@ -59,7 +59,7 @@ necessary fields for multiple datasets used in the paper can be found in [`prepr
 
 There are two ways to train a cpa model:
 
-* Using the command line, e.g.: `python -m cpa.train --dataset_path datasets/GSM_new.h5ad  --save_dir /tmp --max_epochs 1 --doser_type sigm`
+* Using the command line, e.g.: `python -m cpa.train --data datasets/GSM_new.h5ad  --save_dir /tmp --max_epochs 1 --doser_type sigm`
 * From jupyter notebook: example in [`./notebooks/demo.ipynb`](notebooks/demo.ipynb)
 
 ## Testing
