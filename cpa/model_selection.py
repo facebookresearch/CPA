@@ -1,25 +1,17 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import json
-import os
-import pprint
-import re
 import sys
-import time
 from os import listdir, walk
-from os.path import isfile, join
+from os.path import join
 from pathlib import Path
 
 import cpa.plotting as pl
 import numpy as np
 import pandas as pd
-import scanpy as sc
 import torch
 from cpa.api import *
-from cpa.data import Dataset, load_dataset_splits
-from cpa.model import CPA
 from cpa.plotting import *
-from cpa.train import evaluate, prepare_cpa
+from cpa.train import prepare_cpa
 
 
 class DatasetSpecs:

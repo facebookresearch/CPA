@@ -4,17 +4,13 @@ import copy
 import itertools
 import os
 import pprint
-import re
-import sys
 import time
 from collections import defaultdict
 
-import cpa
 import numpy as np
 import pandas as pd
 import scanpy as sc
 import torch
-from cpa.data import SubDataset, load_dataset_splits
 from cpa.train import evaluate, prepare_cpa
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_distances, euclidean_distances

@@ -1,19 +1,13 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import pprint
-import re
-import sys
 from collections import defaultdict
 
 import matplotlib.font_manager
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scanpy as sc
 import seaborn as sns
-import torch
 from adjustText import adjust_text
-from cpa.api import API, get_reference_from_combo
 from sklearn.decomposition import KernelPCA
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity

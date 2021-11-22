@@ -1,7 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
 import json
-from typing import Union
 
 import numpy as np
 import torch
