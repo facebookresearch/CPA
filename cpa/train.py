@@ -11,8 +11,8 @@ import torch
 from cpa.data import load_dataset_splits
 from cpa.model import CPA
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import balanced_accuracy_score, make_scorer, r2_score
-from sklearn.model_selection import cross_val_score
+from sklearn.metrics import balanced_accuracy_score, r2_score
+from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 
@@ -54,9 +54,15 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
 
     def compute_score(labels):
         if len(np.unique(labels)) > 1:
-            scaler = StandardScaler().fit_transform(latent_basal)
-            scorer = make_scorer(balanced_accuracy_score)
-            return cross_val_score(clf, scaler, labels, scoring=scorer, cv=1, n_jobs=-1)
+            latent_basal_train, latent_basal_test, labels_train, labels_test = (
+                train_test_split(latent_basal, labels, test_size=0.2)
+            )
+            scaler = StandardScaler()
+            scaled_train = scaler.fit_transform(latent_basal_train)
+            scaled_test = scaler.transform(latent_basal_test)
+            clf.fit(scaled_train, labels_train)
+            labels_pred = clf.predict(scaled_test)
+            return balanced_accuracy_score(labels_test, labels_pred)
         else:
             return 0
 
