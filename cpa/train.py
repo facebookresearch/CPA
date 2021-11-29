@@ -43,7 +43,12 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
     if nonlinear:
         clf = KNeighborsClassifier(n_neighbors=int(np.sqrt(len(latent_basal))))
     else:
-        clf = LogisticRegression(solver="liblinear", multi_class="auto", max_iter=10000)
+        clf = LogisticRegression(
+            solver="saga", 
+            multi_class="multinomial", 
+            max_iter=3000,
+            tol=1e-2,
+        )
 
     pert_scores, cov_scores = 0, []
 
@@ -51,7 +56,7 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
         if len(np.unique(labels)) > 1:
             scaler = StandardScaler().fit_transform(latent_basal)
             scorer = make_scorer(balanced_accuracy_score)
-            return cross_val_score(clf, scaler, labels, scoring=scorer, cv=5, n_jobs=-1)
+            return cross_val_score(clf, scaler, labels, scoring=scorer, cv=1, n_jobs=-1)
         else:
             return 0
 

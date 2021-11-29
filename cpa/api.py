@@ -314,6 +314,7 @@ class API:
 
                 if (epoch % checkpoint_freq) == 0 or stop:
                     if run_eval == True:
+                        print(stop)
                         evaluation_stats = evaluate(self.model, self.datasets)
                         for key, val in evaluation_stats.items():
                             if not (key in self.model.history.keys()):
@@ -323,6 +324,7 @@ class API:
                         stop = stop or self.model.early_stopping(
                             np.mean(evaluation_stats["test"])
                         )
+                        print(stop)
                     else:
                         stop = stop or self.model.early_stopping(
                             np.mean(epoch_training_stats["test"])
