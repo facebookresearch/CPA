@@ -235,6 +235,8 @@ class API:
             Maximum number epochs for training.
         checkpoint_freq : int (default: 20)
             Checkoint frequencty to save intermediate results.
+        run_eval : bool (default: False)
+            Whether or not to run disentanglement and R2 evaluation during training.
         max_minutes : int (default: 60)
             Maximum computation time in minutes.
         filename : str (default: 'model.pt')
@@ -444,7 +446,7 @@ class API:
         If return_anndata is True, returns anndata object. Otherwise, doesn't
         return anything. Always saves embeddding in self.emb_covars.
         """
-
+        self._init_covars_embedding()
         if return_anndata:
             adata = sc.AnnData(np.array(list(self.emb_covars_combined.values())))
             adata.obs["covars"] = self.emb_covars_combined.keys()
