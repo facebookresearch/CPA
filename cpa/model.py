@@ -400,7 +400,14 @@ class CPA(torch.nn.Module):
         else:
             return self.dosers(drugs) @ self.drug_embeddings.weight
 
-    def predict(self, genes, drugs, covariates, return_latent_basal=False):
+    def predict(
+        self, 
+        genes, 
+        drugs, 
+        covariates, 
+        return_latent_basal=False,
+        return_latent_treated=False,
+    ):
         """
         Predict "what would have the gene expression `genes` been, had the
         cells in `genes` with cell types `cell_types` been treated with
@@ -438,8 +445,12 @@ class CPA(torch.nn.Module):
             # gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-6, max=1e6)
 
         if return_latent_basal:
-            return gene_reconstructions, latent_basal
-
+            if return_latent_treated:
+                return gene_reconstructions, latent_basal, latent_treated
+            else:
+                return gene_reconstructions, latent_basal
+        if return_latent_treated:
+            return gene_reconstructions, latent_treated
         return gene_reconstructions
 
     def early_stopping(self, score):

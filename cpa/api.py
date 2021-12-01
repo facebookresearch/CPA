@@ -446,7 +446,7 @@ class API:
         If return_anndata is True, returns anndata object. Otherwise, doesn't
         return anything. Always saves embeddding in self.emb_covars.
         """
-        self._init_covars_embedding()
+        self._init_covars_embeddings()
         if return_anndata:
             adata = sc.AnnData(np.array(list(self.emb_covars_combined.values())))
             adata.obs["covars"] = self.emb_covars_combined.keys()
@@ -957,6 +957,106 @@ class API:
             return adata
         else:
             return gene_means, gene_vars, df_obs
+
+    def get_latent(
+        self,
+        genes,
+        cov,
+        pert,
+        dose,
+        return_anndata=True,
+    ):
+        """Get latent values of control 'genes' with conditions specified in df.
+
+        Parameters
+        ----------
+        genes : np.array
+            Control cells.
+        cov: dict of lists
+            Provide a value for each covariate (eg. cell_type) as a dictionaty
+            for the queried uncertainty (e.g. cov_dict={'cell_type': 'A549'}).
+        pert: list
+            Perturbation for the queried uncertainty. In case of combinations the
+            format has to be 'pertA+pertB'
+        dose: list
+            String which contains the dose of the perturbation queried. In case
+            of combinations the format has to be 'doseA+doseB'
+        return_anndata : bool, optional (default: True)
+            Return embedding wrapped into anndata object.
+
+        Returns
+        -------
+        If return_anndata is True, returns anndata structure. Otherwise, returns
+        np.arrays for latent and a data frame for the corresponding
+        conditions df_obs.
+
+        """
+
+        assert len(dose) == len(pert), "Check the length of pert, dose"
+        for cov_key in cov:
+            assert len(cov[cov_key]) == len(pert), "Check the length of covariates"
+
+        df = pd.concat(
+            [
+                pd.DataFrame({self.perturbation_key: pert, self.dose_key: dose}),
+                pd.DataFrame(cov),
+            ],
+            axis=1,
+        )
+
+        self.model.eval()
+        num = genes.shape[0]
+        genes = torch.Tensor(genes).to(self.model.device)
+
+        latent_list = []
+        df_list = []
+
+        for i in range(len(df)):
+            comb_name = pert[i]
+            dose_name = dose[i]
+            covar_name = {}
+            for cov_key in cov:
+                covar_name[cov_key] = cov[cov_key][i]
+
+            drug_ohe = torch.Tensor(
+                self._get_drug_encoding(comb_name, doses=dose_name)
+            ).to(self.model.device)
+
+            drugs = drug_ohe.expand([num, self.drug_ohe.shape[1]])
+
+            covars = []
+            for cov_key in self.covariate_keys:
+                covar_ohe = torch.Tensor(
+                    self.covars_dict[cov_key][covar_name[cov_key]]
+                ).to(self.model.device)
+                covars.append(covar_ohe.expand([num, covar_ohe.shape[0]]).clone())
+
+            _, latent_treated = self.model.predict(
+                    genes,
+                    drugs, 
+                    covars,
+                    return_latent_treated=True,
+            )
+
+            latent_treated = latent_treated.cpu().clone().detach().numpy()
+
+            df_list.append(
+                pd.DataFrame([df.loc[i].values] * num, columns=df.columns)
+            )
+
+            latent_list.append(latent_treated)
+
+        latent = np.concatenate(latent_list)
+        df_obs = pd.concat(df_list)
+        del df_list
+
+        if return_anndata:
+            adata = sc.AnnData(latent)
+            adata.obs = df_obs
+            adata.obs.index = adata.obs.index.astype(str)  # type fix
+            return adata
+        else:
+            return latent, df_obs
 
     def get_response(
         self,
