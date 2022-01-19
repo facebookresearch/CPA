@@ -435,14 +435,13 @@ class CPA(torch.nn.Module):
 
         # convert variance estimates to a positive value in [1e-3, \infty)
         dim = gene_reconstructions.size(1) // 2
-        gene_reconstructions[:, dim:] = (
-            gene_reconstructions[:, dim:].exp().add(1).log().add(1e-3)
-        )
+        #gene_reconstructions[:, dim:] = (
+        #    gene_reconstructions[:, dim:].exp().add(1).log().add(1e-3)
+        #)
+        gene_reconstructions[:, dim:] = F.softplus(gene_reconstructions[:, dim:])
 
         if self.loss_ae == "nb":
-            gene_reconstructions[:, :dim] = (
-                gene_reconstructions[:, :dim].exp().add(1).log().add(1e-3)
-            )
+            gene_reconstructions[:, dim:] = F.softplus(gene_reconstructions[:, dim:])
             #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
             #gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-4, max=1e4)
 
