@@ -9,12 +9,15 @@ from collections import defaultdict
 import numpy as np
 import torch
 from cpa.data import load_dataset_splits
-from cpa.model import CPA
+from cpa.model import CPA, MLP
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
+from torch.autograd import Variable
+from torch.distributions import NegativeBinomial
+from torch import nn
 
 
 def pjson(s):
@@ -23,6 +26,28 @@ def pjson(s):
     """
     print(json.dumps(s), flush=True)
 
+def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
+    r"""NB parameterizations conversion
+    Parameters
+    ----------
+    mu :
+        mean of the NB distribution.
+    theta :
+        inverse overdispersion.
+    eps :
+        constant used for numerical log stability. (Default value = 1e-6)
+    Returns
+    -------
+    type
+        the number of failures until the experiment is stopped
+        and the success probability.
+    """
+    assert (mu is None) == (
+        theta is None
+    ), "If using the mu/theta NB parameterization, both parameters must be specified"
+    logits = (mu + eps).log() - (theta + eps).log()
+    total_count = theta
+    return total_count, logits
 
 def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
     """
@@ -31,14 +56,15 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
     vectors.
 
     """
-    _, latent_basal = autoencoder.predict(
-        dataset.genes,
-        dataset.drugs,
-        dataset.covariates,
-        return_latent_basal=True,
-    )
+    with torch.no_grad():
+        _, latent_basal = autoencoder.predict(
+            dataset.genes,
+            dataset.drugs,
+            dataset.covariates,
+            return_latent_basal=True,
+        )
 
-    latent_basal = latent_basal.detach().cpu().numpy()
+    #latent_basal = latent_basal.detach().cpu().numpy()
 
     if nonlinear:
         clf = KNeighborsClassifier(n_neighbors=int(np.sqrt(len(latent_basal))))
@@ -49,20 +75,44 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
             max_iter=3000,
             tol=1e-2,
         )
-
-    pert_scores, cov_scores = 0, []
-
+    
+    mean = latent_basal.mean(dim=0, keepdim=True)
+    stddev = latent_basal.std(0, unbiased=False, keepdim=True)
+    normalized_basal = (latent_basal - mean) / stddev
+    criterion = nn.CrossEntropyLoss()
+    pert_score, cov_scores = 0, []
     def compute_score(labels):
         if len(np.unique(labels)) > 1:
-            latent_basal_train, latent_basal_test, labels_train, labels_test = (
-                train_test_split(latent_basal, labels, test_size=0.2)
+            unique_labels = set(labels)
+            label_to_idx = {labels: idx for idx, labels in enumerate(unique_labels)}
+            labels_tensor = torch.tensor(
+                [label_to_idx[label] for label in labels], dtype=torch.long, device="cuda"
             )
-            scaler = StandardScaler()
-            scaled_train = scaler.fit_transform(latent_basal_train)
-            scaled_test = scaler.transform(latent_basal_test)
-            clf.fit(scaled_train, labels_train)
-            labels_pred = clf.predict(scaled_test)
-            return balanced_accuracy_score(labels_test, labels_pred)
+            assert normalized_basal.size(0) == len(labels_tensor)
+            dataset = torch.utils.data.TensorDataset(normalized_basal, labels_tensor)
+            data_loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
+
+            # 2 non-linear layers of size <input_dimension>
+            # followed by a linear layer.
+            disentanglement_classifier = MLP(
+                [normalized_basal.size(1)]
+                + [normalized_basal.size(1) for _ in range(2)]
+                + [len(unique_labels)]
+            ).to(autoencoder.device)
+            optimizer = torch.optim.Adam(disentanglement_classifier.parameters(), lr=1e-2)
+
+            for epoch in range(50):
+                for X, y in data_loader:
+                    pred = disentanglement_classifier(X)
+                    loss = Variable(criterion(pred, y), requires_grad=True)
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+            with torch.no_grad():
+                pred = disentanglement_classifier(normalized_basal).argmax(dim=1)
+                acc = torch.sum(pred == labels_tensor) / len(labels_tensor)
+            return acc.item()
         else:
             return 0
 
@@ -116,6 +166,30 @@ def evaluate_r2(autoencoder, dataset, genes_control):
             mean_predict = genes_predict[:, :dim]
             var_predict = genes_predict[:, dim:]
 
+            if autoencoder.loss_ae == 'nb':
+                counts, logits = _convert_mean_disp_to_counts_logits(
+                    torch.clamp(
+                        torch.Tensor(mean_predict),
+                        min=1e-4,
+                        max=1e4,
+                    ),
+                    torch.clamp(
+                        torch.Tensor(var_predict),
+                        min=1e-4,
+                        max=1e4,
+                    )
+                )
+                dist = NegativeBinomial(
+                    total_count=counts,
+                    logits=logits
+                )
+                nb_sample = dist.sample().cpu().numpy()
+                yp_m = nb_sample.mean(0)
+                yp_v = nb_sample.var(0)
+            else:
+                # predicted means and variances
+                yp_m = mean_predict.mean(0)
+                yp_v = var_predict.mean(0)
             # estimate metrics only for reasonably-sized drug/cell-type combos
 
             y_true = dataset.genes[idx, :].numpy()
@@ -123,9 +197,6 @@ def evaluate_r2(autoencoder, dataset, genes_control):
             # true means and variances
             yt_m = y_true.mean(axis=0)
             yt_v = y_true.var(axis=0)
-            # predicted means and variances
-            yp_m = mean_predict.mean(0)
-            yp_v = var_predict.mean(0)
 
             mean_score.append(r2_score(yt_m, yp_m))
             var_score.append(r2_score(yt_v, yp_v))

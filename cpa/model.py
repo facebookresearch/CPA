@@ -5,7 +5,6 @@ import json
 import numpy as np
 import torch
 
-
 class NBLoss(torch.nn.Module):
     def __init__(self):
         super(NBLoss, self).__init__()
@@ -33,26 +32,31 @@ class NBLoss(torch.nn.Module):
         # inverse dispersion parameter (has to be positive support)
         theta = yhat[:, dim:]
 
-        if theta.ndimension() == 1:
-            # In this case, we reshape theta for broadcasting
-            theta = theta.view(1, theta.size(0))
-        t1 = (
-            torch.lgamma(theta + eps)
-            + torch.lgamma(y + 1.0)
-            - torch.lgamma(y + theta + eps)
+        # if theta.ndimension() == 1:
+        #     # In this case, we reshape theta for broadcasting
+        #     theta = theta.view(1, theta.size(0))
+        # t1 = (
+        #     torch.lgamma(theta + eps)
+        #     + torch.lgamma(y + 1.0)
+        #     - torch.lgamma(y + theta + eps)
+        # )
+        # t2 = (theta + y) * torch.log(1.0 + (mu / (theta + eps))) + (
+        #     y * (torch.log(theta + eps) - torch.log(mu + eps))
+        # )
+        # final = t1 + t2
+        # final = _nan2inf(final)
+        log_theta_mu_eps = torch.log(theta + mu + eps)
+        res = (
+            theta * (torch.log(theta + eps) - log_theta_mu_eps)
+            + y * (torch.log(mu + eps) - log_theta_mu_eps)
+            + torch.lgamma(y + theta)
+            - torch.lgamma(theta)
+            - torch.lgamma(y + 1)
         )
-        t2 = (theta + y) * torch.log(1.0 + (mu / (theta + eps))) + (
-            y * (torch.log(theta + eps) - torch.log(mu + eps))
-        )
-        final = t1 + t2
-        final = _nan2inf(final)
-
-        return torch.mean(final)
-
-
+        return -torch.mean(res)
+    
 def _nan2inf(x):
     return torch.where(torch.isnan(x), torch.zeros_like(x) + np.inf, x)
-
 
 class GaussianLoss(torch.nn.Module):
     """
@@ -415,6 +419,8 @@ class CPA(torch.nn.Module):
         """
 
         genes, drugs, covariates = self.move_inputs_(genes, drugs, covariates)
+        if self.loss_ae == 'nb':
+            genes = torch.log1p(genes)
 
         latent_basal = self.encoder(genes)
 
@@ -439,10 +445,10 @@ class CPA(torch.nn.Module):
 
         if self.loss_ae == "nb":
             gene_reconstructions[:, :dim] = (
-                gene_reconstructions[:, :dim].exp().add(1).log().add(1e-4)
+                gene_reconstructions[:, :dim].exp().add(1).log().add(1e-3)
             )
-            # gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
-            # gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-6, max=1e6)
+            #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
+            #gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-4, max=1e4)
 
         if return_latent_basal:
             if return_latent_treated:
@@ -475,13 +481,17 @@ class CPA(torch.nn.Module):
         cell types.
         """
         genes, drugs, covariates = self.move_inputs_(genes, drugs, covariates)
-
         gene_reconstructions, latent_basal = self.predict(
             genes,
             drugs,
             covariates,
             return_latent_basal=True,
         )
+
+        if self.loss_ae == 'nb':
+            reconstruction_loss_weight = 1
+        else:
+            reconstruction_loss_weight = 1
 
         reconstruction_loss = self.loss_autoencoder(gene_reconstructions, genes)
 
@@ -540,7 +550,7 @@ class CPA(torch.nn.Module):
             if self.num_drugs > 0:
                 self.optimizer_dosers.zero_grad()
             (
-                reconstruction_loss
+                reconstruction_loss * reconstruction_loss_weight
                 - self.hparams["reg_adversary"] * adversary_drugs_loss
                 - self.hparams["reg_adversary"] * adversary_covariates_loss
             ).backward()

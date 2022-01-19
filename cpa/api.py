@@ -6,16 +6,80 @@ import os
 import pprint
 import time
 from collections import defaultdict
+from typing import Optional, Union, Tuple
 
 import numpy as np
 import pandas as pd
 import scanpy as sc
 import torch
+from torch.distributions import (
+    Distribution, 
+    Gamma, 
+    Poisson, 
+    NegativeBinomial,
+    Normal
+)
 from cpa.train import evaluate, prepare_cpa
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_distances, euclidean_distances
 from tqdm import tqdm
 
+def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
+    r"""NB parameterizations conversion
+    Parameters
+    ----------
+    mu :
+        mean of the NB distribution.
+    theta :
+        inverse overdispersion.
+    eps :
+        constant used for numerical log stability. (Default value = 1e-6)
+    Returns
+    -------
+    type
+        the number of failures until the experiment is stopped
+        and the success probability.
+    """
+    assert (mu is None) == (
+        theta is None
+    ), "If using the mu/theta NB parameterization, both parameters must be specified"
+    logits = (mu + eps).log() - (theta + eps).log()
+    total_count = theta
+    return total_count, logits
+
+def _gamma(theta, mu):
+    concentration = theta
+    rate = theta / mu
+    # Important remark: Gamma is parametrized by the rate = 1/scale!
+    gamma_d = Gamma(concentration=concentration, rate=rate)
+    return gamma_d
+
+class CustomNB(Distribution):
+    def __init__(
+        self, 
+        mu: Optional[torch.Tensor] = None,
+        theta: Optional[torch.Tensor] = None,
+    ):
+        self.mu = mu
+        self.theta = theta
+
+    def sample(
+        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+    ) -> torch.Tensor:
+        with torch.no_grad():
+            gamma_d = self._gamma()
+            p_means = gamma_d.sample(sample_shape)
+
+            # Clamping as distributions objects can have buggy behaviors when
+            # their parameters are too high
+            l_train = torch.clamp(p_means, max=1e8)
+            counts = Poisson(
+                l_train
+            ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+            return counts
+
+    def _gamma(self):
+        return _gamma(self.theta, self.mu)
 
 class API:
     """
@@ -814,7 +878,7 @@ class API:
         uncertainty=True,
         return_anndata=True,
         sample=False,
-        n_samples=10,
+        n_samples=1,
     ):
         """Predict values of control 'genes' conditions specified in df.
 
@@ -906,10 +970,28 @@ class API:
                         [df.loc[i].values] * num * n_samples, columns=df.columns
                     )
                 )
-                dist = torch.distributions.normal.Normal(
-                    torch.Tensor(gene_reconstructions[:, :dim]),
-                    torch.Tensor(gene_reconstructions[:, dim:]),
-                )
+                if self.args['loss_ae'] == 'gauss':
+                    dist = Normal(
+                        torch.Tensor(gene_reconstructions[:, :dim]),
+                        torch.Tensor(gene_reconstructions[:, dim:]),
+                    )
+                elif self.args['loss_ae'] == 'nb':
+                    counts, logits = _convert_mean_disp_to_counts_logits(
+                        torch.clamp(
+                            torch.Tensor(gene_reconstructions[:, :dim]),
+                            min=1e-4,
+                            max=1e4,
+                        ),
+                        torch.clamp(
+                            torch.Tensor(gene_reconstructions[:, dim:]),
+                            min=1e-6,
+                            max=1e6,
+                        )
+                    )
+                    dist = NegativeBinomial(
+                        total_count=counts,
+                        logits=logits
+                    )
                 gene_means_list.append(
                     dist.sample(torch.Size([n_samples]))
                     .cpu()
