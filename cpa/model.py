@@ -4,12 +4,13 @@ import json
 
 import numpy as np
 import torch
+from torch import nn
 
 class NBLoss(torch.nn.Module):
     def __init__(self):
         super(NBLoss, self).__init__()
 
-    def forward(self, yhat, y, eps=1e-8):
+    def forward(self, mu, yhat, theta, eps=1e-8):
         """Negative binomial log-likelihood loss. It assumes targets `y` with n
         rows and d columns, but estimates `yhat` with n rows and 2d columns.
         The columns 0:d of `yhat` contain estimated means, the columns d:2*d of
@@ -26,11 +27,6 @@ class NBLoss(torch.nn.Module):
         eps: Float
                 numerical stability constant.
         """
-        dim = yhat.size(1) // 2
-        # means of the negative binomial (has to be positive support)
-        mu = yhat[:, :dim]
-        # inverse dispersion parameter (has to be positive support)
-        theta = yhat[:, dim:]
 
         # if theta.ndimension() == 1:
         #     # In this case, we reshape theta for broadcasting
@@ -268,7 +264,7 @@ class CPA(torch.nn.Module):
         if self.loss_ae == "nb":
             self.loss_autoencoder = NBLoss()
         else:
-            self.loss_autoencoder = GaussianLoss()
+            self.loss_autoencoder = nn.GaussianNLLLoss()
 
         self.iteration = 0
 
@@ -487,13 +483,14 @@ class CPA(torch.nn.Module):
             covariates,
             return_latent_basal=True,
         )
-
+        dim = gene_reconstructions.size(1) // 2
+        gene_means = gene_reconstructions[:, :dim]
+        gene_vars = gene_reconstructions[:, dim:]
         if self.loss_ae == 'nb':
             reconstruction_loss_weight = 1
         else:
             reconstruction_loss_weight = 1
-
-        reconstruction_loss = self.loss_autoencoder(gene_reconstructions, genes)
+        reconstruction_loss = self.loss_autoencoder(gene_means, genes, gene_vars)
 
         adversary_drugs_loss = torch.tensor([0.0], device=self.device)
         if self.num_drugs > 0:
