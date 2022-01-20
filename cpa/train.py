@@ -66,21 +66,22 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
 
     #latent_basal = latent_basal.detach().cpu().numpy()
 
-    if nonlinear:
-        clf = KNeighborsClassifier(n_neighbors=int(np.sqrt(len(latent_basal))))
-    else:
-        clf = LogisticRegression(
-            solver="saga", 
-            multi_class="multinomial", 
-            max_iter=3000,
-            tol=1e-2,
-        )
+    # if nonlinear:
+    #     clf = KNeighborsClassifier(n_neighbors=int(np.sqrt(len(latent_basal))))
+    # else:
+    #     clf = LogisticRegression(
+    #         solver="saga", 
+    #         multi_class="multinomial", 
+    #         max_iter=3000,
+    #         tol=1e-2,
+    #     )
     
     mean = latent_basal.mean(dim=0, keepdim=True)
     stddev = latent_basal.std(0, unbiased=False, keepdim=True)
     normalized_basal = (latent_basal - mean) / stddev
     criterion = nn.CrossEntropyLoss()
-    pert_score, cov_scores = 0, []
+    pert_scores, cov_scores = 0, []
+
     def compute_score(labels):
         if len(np.unique(labels)) > 1:
             unique_labels = set(labels)
