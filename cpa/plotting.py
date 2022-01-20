@@ -1434,7 +1434,7 @@ class CPAHistory:
             1+len(self.covariate_names), 
             sharex=True, 
             sharey=False, 
-            figsize=(2 + 4*(len(self.covariate_names)), 3)
+            figsize=(2 + 5*(len(self.covariate_names)), 3)
         )
 
         ax = plt.gca()
@@ -1445,7 +1445,7 @@ class CPAHistory:
             legend=False,
             ax=axs[0],
         )
-        axs[0].set_title("perturbation disentanglement", fontweight="bold")
+        axs[0].set_title("perturbation disent", fontweight="bold")
 
         for i, cov in enumerate(self.covariate_names):
             sns.lineplot(
@@ -1455,6 +1455,6 @@ class CPAHistory:
                 legend=False,
                 ax=axs[1+i]
             )
-            axs[1+i].set_title(f"{cov} disentanglement", fontweight="bold")
+            axs[1+i].set_title(f"{cov} disent", fontweight="bold")
         fig.tight_layout()
         sns.despine()
