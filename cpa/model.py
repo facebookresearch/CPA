@@ -11,8 +11,8 @@ class NBLoss(torch.nn.Module):
     def __init__(self):
         super(NBLoss, self).__init__()
 
-    def forward(self, mu, yhat, theta, eps=1e-8):
-        """Negative binomial log-likelihood loss. It assumes targets `y` with n
+    def forward(self, mu, y, theta, eps=1e-8):
+        """Negative binomial negative log-likelihood. It assumes targets `y` with n
         rows and d columns, but estimates `yhat` with n rows and 2d columns.
         The columns 0:d of `yhat` contain estimated means, the columns d:2*d of
         `yhat` contain estimated variances. This module assumes that the
@@ -28,18 +28,19 @@ class NBLoss(torch.nn.Module):
         eps: Float
                 numerical stability constant.
         """
-
-        # if theta.ndimension() == 1:
-        #     # In this case, we reshape theta for broadcasting
-        #     theta = theta.view(1, theta.size(0))
+        if theta.ndimension() == 1:
+            # In this case, we reshape theta for broadcasting
+            theta = theta.view(1, theta.size(0))
         # t1 = (
         #     torch.lgamma(theta + eps)
         #     + torch.lgamma(y + 1.0)
         #     - torch.lgamma(y + theta + eps)
         # )
+        # print(torch.any(torch.isnan(t1)))
         # t2 = (theta + y) * torch.log(1.0 + (mu / (theta + eps))) + (
         #     y * (torch.log(theta + eps) - torch.log(mu + eps))
         # )
+        # print(torch.any(torch.isnan(t2)))
         # final = t1 + t2
         # final = _nan2inf(final)
         log_theta_mu_eps = torch.log(theta + mu + eps)
@@ -50,6 +51,7 @@ class NBLoss(torch.nn.Module):
             - torch.lgamma(theta)
             - torch.lgamma(y + 1)
         )
+        res = _nan2inf(res)
         return -torch.mean(res)
     
 def _nan2inf(x):
@@ -437,10 +439,11 @@ class CPA(torch.nn.Module):
         # convert variance estimates to a positive value in [1e-3, \infty)
         dim = gene_reconstructions.size(1) // 2
         gene_means = gene_reconstructions[:, :dim]
-        gene_vars = F.softplus(gene_reconstructions[:, dim:])
-        #gene_reconstructions[:, dim:] = (
-        #    gene_reconstructions[:, dim:].exp().add(1).log().add(1e-3)
-        #)
+        gene_vars = F.softplus(gene_reconstructions[:, dim:]).add(1e-3)
+        #gene_vars = gene_reconstructions[:, dim:].exp().add(1).log().add(1e-3)
+
+        if self.loss_ae == 'nb':
+            gene_means = F.softplus(gene_means).add(1e-3)
         gene_reconstructions = torch.concat([gene_means, gene_vars], dim=1)
         #if self.loss_ae == "nb":
             #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
@@ -486,12 +489,7 @@ class CPA(torch.nn.Module):
         dim = gene_reconstructions.size(1) // 2
         gene_means = gene_reconstructions[:, :dim]
         gene_vars = gene_reconstructions[:, dim:]
-        if self.loss_ae == 'nb':
-            reconstruction_loss_weight = 1
-        else:
-            reconstruction_loss_weight = 1
         reconstruction_loss = self.loss_autoencoder(gene_means, genes, gene_vars)
-
         adversary_drugs_loss = torch.tensor([0.0], device=self.device)
         if self.num_drugs > 0:
             adversary_drugs_predictions = self.adversary_drugs(latent_basal)
@@ -547,7 +545,7 @@ class CPA(torch.nn.Module):
             if self.num_drugs > 0:
                 self.optimizer_dosers.zero_grad()
             (
-                reconstruction_loss * reconstruction_loss_weight
+                reconstruction_loss * 100
                 - self.hparams["reg_adversary"] * adversary_drugs_loss
                 - self.hparams["reg_adversary"] * adversary_covariates_loss
             ).backward()

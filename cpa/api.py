@@ -979,15 +979,16 @@ class API:
                     counts, logits = _convert_mean_disp_to_counts_logits(
                         torch.clamp(
                             torch.Tensor(gene_reconstructions[:, :dim]),
-                            min=1e-4,
-                            max=1e4,
+                            min=1e-8,
+                            max=1e8,
                         ),
                         torch.clamp(
                             torch.Tensor(gene_reconstructions[:, dim:]),
-                            min=1e-6,
-                            max=1e6,
+                            min=1e-8,
+                            max=1e8,
                         )
                     )
+                    print(counts)
                     dist = NegativeBinomial(
                         total_count=counts,
                         logits=logits
