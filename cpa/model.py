@@ -545,7 +545,7 @@ class CPA(torch.nn.Module):
             if self.num_drugs > 0:
                 self.optimizer_dosers.zero_grad()
             (
-                reconstruction_loss * 100
+                reconstruction_loss
                 - self.hparams["reg_adversary"] * adversary_drugs_loss
                 - self.hparams["reg_adversary"] * adversary_covariates_loss
             ).backward()
