@@ -5,6 +5,10 @@ import warnings
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from sklearn.metrics import r2_score
+from scipy.sparse import issparse
+from scipy.stats import wasserstein_distance
+import torch
 
 warnings.filterwarnings("ignore")
 
@@ -196,3 +200,131 @@ def rank_genes_groups(
 
     if return_dict:
         return gene_dict
+
+def evaluate_r2_(adata, pred_adata, condition_key, sampled=False):
+    r2_list = []
+    if issparse(adata.X): 
+        adata.X = adata.X.A
+    if issparse(pred_adata.X): 
+        pred_adata.X = pred_adata.X.A
+    for cond in pred_adata.obs[condition_key].unique():
+        adata_ = adata[adata.obs[condition_key] == cond]
+        pred_adata_ = pred_adata[pred_adata.obs[condition_key] == cond]
+
+        r2_mean = r2_score(adata_.X.mean(0), pred_adata_.X.mean(0))
+        if sampled:
+            r2_var = r2_score(adata_.X.var(0), pred_adata_.X.var(0))
+        else:
+            r2_var = r2_score(
+                adata_.X.var(0), 
+                pred_adata_.layers['variance'].var(0)
+            )
+        r2_list.append(
+            {
+                'condition': cond,
+                'r2_mean': r2_mean,
+                'r2_var': r2_var,
+            }
+        )
+    r2_df = pd.DataFrame(r2_list).set_index('condition')
+    return r2_df
+def evaluate_mmd(adata, pred_adata, condition_key):
+    mmd_list = []
+    for cond in pred_adata.obs[condition_key].unique():
+        adata_ = adata[adata.obs[condition_key] == cond].copy()
+        pred_adata_ = pred_adata[pred_adata.obs[condition_key] == cond].copy()
+        if issparse(adata_.X): 
+            adata_.X = adata_.X.A
+        if issparse(pred_adata_.X): 
+            pred_adata_.X = pred_adata_.X.A
+
+        mmd = mmd_loss_calc(torch.Tensor(adata_.X), torch.Tensor(pred_adata_.X))
+        mmd_list.append(
+            {
+                'condition': cond,
+                'mmd': mmd.detach().cpu().numpy()
+            }
+        )
+    mmd_df = pd.DataFrame(mmd_list).set_index('condition')
+    return mmd_df
+
+def evaluate_emd(adata, pred_adata, condition_key):
+    emd_list = []
+    for cond in pred_adata.obs[condition_key].unique():
+        adata_ = adata[adata.obs[condition_key] == cond].copy()
+        pred_adata_ = pred_adata[pred_adata.obs[condition_key] == cond].copy()
+        if issparse(adata_.X): 
+            adata_.X = adata_.X.A
+        if issparse(pred_adata_.X): 
+            pred_adata_.X = pred_adata_.X.A
+        wd = []
+        for i, _ in enumerate(adata_.var_names):
+            wd.append(
+                wasserstein_distance(torch.Tensor(adata_.X[:, i]), torch.Tensor(pred_adata_.X[:, i]))
+            )
+        emd_list.append(
+            {
+                'condition': cond,
+                'emd': np.mean(wd)
+            }
+        )
+    emd_df = pd.DataFrame(emd_list).set_index('condition')
+    return emd_df
+
+def pairwise_distance(x, y):
+    x = x.view(x.shape[0], x.shape[1], 1)
+    y = torch.transpose(y, 0, 1)
+    output = torch.sum((x - y) ** 2, 1)
+    output = torch.transpose(output, 0, 1)
+    return output
+
+
+def gaussian_kernel_matrix(x, y, alphas):
+    """Computes multiscale-RBF kernel between x and y.
+       Parameters
+       ----------
+       x: torch.Tensor
+            Tensor with shape [batch_size, z_dim].
+       y: torch.Tensor
+            Tensor with shape [batch_size, z_dim].
+       alphas: Tensor
+       Returns
+       -------
+       Returns the computed multiscale-RBF kernel between x and y.
+    """
+
+    dist = pairwise_distance(x, y).contiguous()
+    dist_ = dist.view(1, -1)
+
+    alphas = alphas.view(alphas.shape[0], 1)
+    beta = 1. / (2. * alphas)
+
+    s = torch.matmul(beta, dist_)
+
+    return torch.sum(torch.exp(-s), 0).view_as(dist)
+
+
+def mmd_loss_calc(source_features, target_features):
+    """Initializes Maximum Mean Discrepancy(MMD) between source_features and target_features.
+       - Gretton, Arthur, et al. "A Kernel Two-Sample Test". 2012.
+       Parameters
+       ----------
+       source_features: torch.Tensor
+            Tensor with shape [batch_size, z_dim]
+       target_features: torch.Tensor
+            Tensor with shape [batch_size, z_dim]
+       Returns
+       -------
+       Returns the computed MMD between x and y.
+    """
+    alphas = [
+        1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 5, 10, 15, 20, 25, 30, 35, 100,
+        1e3, 1e4, 1e5, 1e6
+    ]
+    alphas = Variable(torch.FloatTensor(alphas)).to(device=source_features.device)
+
+    cost = torch.mean(gaussian_kernel_matrix(source_features, source_features, alphas))
+    cost += torch.mean(gaussian_kernel_matrix(target_features, target_features, alphas))
+    cost -= 2 * torch.mean(gaussian_kernel_matrix(source_features, target_features, alphas))
+
+    return cost

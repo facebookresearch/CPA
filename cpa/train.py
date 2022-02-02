@@ -49,7 +49,7 @@ def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
     total_count = theta
     return total_count, logits
 
-def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
+def evaluate_disentanglement(autoencoder, dataset):
     """
     Given a CPA model, this function measures the correlation between
     its latent space and 1) a dataset's drug vectors 2) a datasets covariate
@@ -63,18 +63,6 @@ def evaluate_disentanglement(autoencoder, dataset, nonlinear=False):
             dataset.covariates,
             return_latent_basal=True,
         )
-
-    #latent_basal = latent_basal.detach().cpu().numpy()
-
-    # if nonlinear:
-    #     clf = KNeighborsClassifier(n_neighbors=int(np.sqrt(len(latent_basal))))
-    # else:
-    #     clf = LogisticRegression(
-    #         solver="saga", 
-    #         multi_class="multinomial", 
-    #         max_iter=3000,
-    #         tol=1e-2,
-    #     )
     
     mean = latent_basal.mean(dim=0, keepdim=True)
     stddev = latent_basal.std(0, unbiased=False, keepdim=True)
@@ -253,7 +241,6 @@ def evaluate(autoencoder, datasets):
     autoencoder.train()
     return evaluation_stats
 
-
 def prepare_cpa(args, state_dict=None):
     """
     Instantiates autoencoder and dataset to run an experiment.
@@ -269,17 +256,6 @@ def prepare_cpa(args, state_dict=None):
         args["split_key"],
         args["control"],
     )
-    # if args["gnn_model"] is not None:
-    #     drug_embeddings = Drugemb(
-    #         dim=256,  # TODO: This is set only in CPA model
-    #         gnn_model=args["gnn_model"],
-    #         graph_feats_shape=datasets["training"].graph_feats_shape,
-    #         idx_wo_smiles=datasets["training"].idx_wo_smiles,
-    #         batched_graph_collection=datasets["training"].batched_graph_collection,
-    #         device=device,
-    #     )
-    # else:
-    #     drug_embeddings = None
 
     autoencoder = CPA(
         datasets["training"].num_genes,

@@ -137,8 +137,8 @@ class CPAVisuals:
                 palette = self.perts_palette
                 labels = self.unique_perts
             elif kind in self.unique_covars:
-                palette = self.covars_palette[cov]
-                labels = self.unique_covars[cov]
+                palette = self.covars_palette[kind]
+                labels = self.unique_covars[kind]
 
         if len(emb) < 2:
             print(f"Embedding contains only {len(emb)} vectors. Not enough to plot.")

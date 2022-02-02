@@ -444,7 +444,7 @@ class CPA(torch.nn.Module):
 
         if self.loss_ae == 'nb':
             gene_means = F.softplus(gene_means).add(1e-3)
-        gene_reconstructions = torch.concat([gene_means, gene_vars], dim=1)
+        gene_reconstructions = torch.cat([gene_means, gene_vars], dim=1)
         #if self.loss_ae == "nb":
             #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
             #gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-4, max=1e4)
