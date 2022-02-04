@@ -214,12 +214,6 @@ class CPA(torch.nn.Module):
             + [num_drugs]
         )
 
-        # self.adversary_cell_types = MLP(
-        #     [self.hparams["dim"]] +
-        #     [self.hparams["adversary_width"]] *
-        #     self.hparams["adversary_depth"] +
-        #     [num_cell_types])
-        # set dosers
         self.loss_adversary_drugs = torch.nn.BCEWithLogitsLoss()
         self.doser_type = doser_type
         if doser_type == "mlp":
@@ -266,7 +260,7 @@ class CPA(torch.nn.Module):
         # losses
         if self.loss_ae == "nb":
             self.loss_autoencoder = NBLoss()
-        else:
+        elif self.loss_ae == 'gauss':
             self.loss_autoencoder = nn.GaussianNLLLoss()
 
         self.iteration = 0
@@ -335,36 +329,36 @@ class CPA(torch.nn.Module):
         torch.manual_seed(seed)
         np.random.seed(seed)
         self.hparams = {
-            "dim": 256 if default else int(np.random.choice([128, 256, 512])),
-            "dosers_width": 64 if default else int(np.random.choice([32, 64, 128])),
+            "dim": 64 if default else int(np.random.choice([64, 128, 256, 512])),
+            "dosers_width": 128 if default else int(np.random.choice([32, 64, 128])),
             "dosers_depth": 2 if default else int(np.random.choice([1, 2, 3])),
-            "dosers_lr": 1e-3 if default else float(10 ** np.random.uniform(-4, -2)),
+            "dosers_lr": 4e-3 if default else float(10 ** np.random.uniform(-4, -2)),
             "dosers_wd": 1e-7 if default else float(10 ** np.random.uniform(-8, -5)),
-            "autoencoder_width": 512
+            "autoencoder_width": 128
             if default
-            else int(np.random.choice([256, 512, 1024])),
+            else int(np.random.choice([128, 256, 512, 1024])),
             "autoencoder_depth": 4 if default else int(np.random.choice([3, 4, 5])),
-            "adversary_width": 128
+            "adversary_width": 64
             if default
             else int(np.random.choice([64, 128, 256])),
             "adversary_depth": 3 if default else int(np.random.choice([2, 3, 4])),
-            "reg_adversary": 5 if default else float(10 ** np.random.uniform(-2, 2)),
-            "penalty_adversary": 3
+            "reg_adversary": 60 if default else float(10 ** np.random.uniform(-10, 10)),
+            "penalty_adversary": 60
             if default
-            else float(10 ** np.random.uniform(-2, 1)),
-            "autoencoder_lr": 1e-3
+            else float(10 ** np.random.uniform(-10, 10)),
+            "autoencoder_lr": 4e-3
             if default
             else float(10 ** np.random.uniform(-4, -2)),
             "adversary_lr": 3e-4 if default else float(10 ** np.random.uniform(-5, -3)),
-            "autoencoder_wd": 1e-6
+            "autoencoder_wd": 4e-7
             if default
             else float(10 ** np.random.uniform(-8, -4)),
-            "adversary_wd": 1e-4 if default else float(10 ** np.random.uniform(-6, -3)),
+            "adversary_wd": 4e-7 if default else float(10 ** np.random.uniform(-6, -3)),
             "adversary_steps": 3 if default else int(np.random.choice([1, 2, 3, 4, 5])),
-            "batch_size": 128
+            "batch_size": 256
             if default
             else int(np.random.choice([64, 128, 256, 512])),
-            "step_size_lr": 45 if default else int(np.random.choice([15, 25, 45])),
+            "step_size_lr": 85 if default else int(np.random.choice([15, 25, 45])),
         }
 
         # the user may fix some hparams
@@ -436,18 +430,19 @@ class CPA(torch.nn.Module):
 
         gene_reconstructions = self.decoder(latent_treated)
 
-        # convert variance estimates to a positive value in [1e-3, \infty)
-        dim = gene_reconstructions.size(1) // 2
-        gene_means = gene_reconstructions[:, :dim]
-        gene_vars = F.softplus(gene_reconstructions[:, dim:]).add(1e-3)
-        #gene_vars = gene_reconstructions[:, dim:].exp().add(1).log().add(1e-3)
+        if self.loss_ae == 'gauss':
+            # convert variance estimates to a positive value in [1e-3, \infty)
+            dim = gene_reconstructions.size(1) // 2
+            gene_means = gene_reconstructions[:, :dim]
+            gene_vars = F.softplus(gene_reconstructions[:, dim:]).add(1e-3)
+            #gene_vars = gene_reconstructions[:, dim:].exp().add(1).log().add(1e-3)
 
         if self.loss_ae == 'nb':
             gene_means = F.softplus(gene_means).add(1e-3)
-        gene_reconstructions = torch.cat([gene_means, gene_vars], dim=1)
-        #if self.loss_ae == "nb":
-            #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
-            #gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-4, max=1e4)
+            gene_reconstructions = torch.cat([gene_means, gene_vars], dim=1)
+            #if self.loss_ae == "nb":
+                #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
+                #gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-4, max=1e4)
 
         if return_latent_basal:
             if return_latent_treated:
@@ -486,6 +481,7 @@ class CPA(torch.nn.Module):
             covariates,
             return_latent_basal=True,
         )
+
         dim = gene_reconstructions.size(1) // 2
         gene_means = gene_reconstructions[:, :dim]
         gene_vars = gene_reconstructions[:, dim:]

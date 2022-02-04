@@ -321,7 +321,7 @@ def mmd_loss_calc(source_features, target_features):
         1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 5, 10, 15, 20, 25, 30, 35, 100,
         1e3, 1e4, 1e5, 1e6
     ]
-    alphas = Variable(torch.FloatTensor(alphas)).to(device=source_features.device)
+    alphas = torch.autograd.Variable(torch.FloatTensor(alphas)).to(device=source_features.device)
 
     cost = torch.mean(gaussian_kernel_matrix(source_features, source_features, alphas))
     cost += torch.mean(gaussian_kernel_matrix(target_features, target_features, alphas))

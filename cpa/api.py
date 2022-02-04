@@ -97,7 +97,7 @@ class API:
         patience=20,
         seed=0,
         pretrained=None,
-        device="cpu",
+        device="cuda",
         save_dir="/tmp/",  # directory to save the model
         hparams={},
         only_parameters=False,
@@ -986,18 +986,19 @@ class API:
                             max=1e8,
                         )
                     )
-                    print(counts)
                     dist = NegativeBinomial(
                         total_count=counts,
                         logits=logits
                     )
-                gene_means_list.append(
+                sampled_gexp = (
                     dist.sample(torch.Size([n_samples]))
                     .cpu()
                     .detach()
                     .numpy()
                     .reshape(-1, dim)
                 )
+                sampled_gexp[sampled_gexp < 0] = 0 #set negative values to 0, since gexp can't be negative
+                gene_means_list.append(sampled_gexp)
             else:
                 df_list.append(
                     pd.DataFrame([df.loc[i].values] * num, columns=df.columns)
@@ -1020,6 +1021,7 @@ class API:
                     closest_cond_cosine=closest_cond_cos,
                     closest_cond_euclidean=closest_cond_eucl,
                 )
+
             gene_vars_list.append(gene_reconstructions[:, dim:])
 
         gene_means = np.concatenate(gene_means_list)
