@@ -11,73 +11,14 @@ import pandas as pd
 import scanpy as sc
 import torch
 from torch.distributions import (
-    Distribution, 
-    Gamma, 
-    Poisson, 
     NegativeBinomial,
     Normal
 )
 from cpa.train import evaluate, prepare_cpa
+from cpa.helper import _convert_mean_disp_to_counts_logits
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_distances, euclidean_distances
 from tqdm import tqdm
-
-def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
-    r"""NB parameterizations conversion
-    Parameters
-    ----------
-    mu :
-        mean of the NB distribution.
-    theta :
-        inverse overdispersion.
-    eps :
-        constant used for numerical log stability. (Default value = 1e-6)
-    Returns
-    -------
-    type
-        the number of failures until the experiment is stopped
-        and the success probability.
-    """
-    assert (mu is None) == (
-        theta is None
-    ), "If using the mu/theta NB parameterization, both parameters must be specified"
-    logits = (mu + eps).log() - (theta + eps).log()
-    total_count = theta
-    return total_count, logits
-
-def _gamma(theta, mu):
-    concentration = theta
-    rate = theta / mu
-    # Important remark: Gamma is parametrized by the rate = 1/scale!
-    gamma_d = Gamma(concentration=concentration, rate=rate)
-    return gamma_d
-
-class CustomNB(Distribution):
-    def __init__(
-        self, 
-        mu: Optional[torch.Tensor] = None,
-        theta: Optional[torch.Tensor] = None,
-    ):
-        self.mu = mu
-        self.theta = theta
-
-    def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
-    ) -> torch.Tensor:
-        with torch.no_grad():
-            gamma_d = self._gamma()
-            p_means = gamma_d.sample(sample_shape)
-
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
-            l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(
-                l_train
-            ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
-            return counts
-
-    def _gamma(self):
-        return _gamma(self.theta, self.mu)
 
 class API:
     """
@@ -91,10 +32,10 @@ class API:
         split_key="split",
         perturbation_key="condition",
         dose_key="dose_val",
-        doser_type="logsigm",
+        doser_type="mlp",
         decoder_activation="linear",
         loss_ae="gauss",
-        patience=20,
+        patience=200,
         seed=0,
         pretrained=None,
         device="cuda",

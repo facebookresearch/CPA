@@ -18,6 +18,29 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
+def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
+    r"""NB parameterizations conversion
+    Parameters
+    ----------
+    mu :
+        mean of the NB distribution.
+    theta :
+        inverse overdispersion.
+    eps :
+        constant used for numerical log stability. (Default value = 1e-6)
+    Returns
+    -------
+    type
+        the number of failures until the experiment is stopped
+        and the success probability.
+    """
+    assert (mu is None) == (
+        theta is None
+    ), "If using the mu/theta NB parameterization, both parameters must be specified"
+    logits = (mu + eps).log() - (theta + eps).log()
+    total_count = theta
+    return total_count, logits
+
 
 def rank_genes_groups_by_cov(
     adata,

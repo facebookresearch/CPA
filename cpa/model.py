@@ -31,18 +31,6 @@ class NBLoss(torch.nn.Module):
         if theta.ndimension() == 1:
             # In this case, we reshape theta for broadcasting
             theta = theta.view(1, theta.size(0))
-        # t1 = (
-        #     torch.lgamma(theta + eps)
-        #     + torch.lgamma(y + 1.0)
-        #     - torch.lgamma(y + theta + eps)
-        # )
-        # print(torch.any(torch.isnan(t1)))
-        # t2 = (theta + y) * torch.log(1.0 + (mu / (theta + eps))) + (
-        #     y * (torch.log(theta + eps) - torch.log(mu + eps))
-        # )
-        # print(torch.any(torch.isnan(t2)))
-        # final = t1 + t2
-        # final = _nan2inf(final)
         log_theta_mu_eps = torch.log(theta + mu + eps)
         res = (
             theta * (torch.log(theta + eps) - log_theta_mu_eps)
@@ -170,11 +158,11 @@ class CPA(torch.nn.Module):
         num_genes,
         num_drugs,
         num_covariates,
-        device="cpu",
+        device="cuda",
         seed=0,
         patience=5,
         loss_ae="gauss",
-        doser_type="logsigm",
+        doser_type="mlp",
         decoder_activation="linear",
         hparams="",
     ):
@@ -329,35 +317,23 @@ class CPA(torch.nn.Module):
         torch.manual_seed(seed)
         np.random.seed(seed)
         self.hparams = {
-            "dim": 64 if default else int(np.random.choice([64, 128, 256, 512])),
+            "dim": 128 if default else int(np.random.choice([64, 128, 256, 512])),
             "dosers_width": 128 if default else int(np.random.choice([32, 64, 128])),
             "dosers_depth": 2 if default else int(np.random.choice([1, 2, 3])),
             "dosers_lr": 4e-3 if default else float(10 ** np.random.uniform(-4, -2)),
             "dosers_wd": 1e-7 if default else float(10 ** np.random.uniform(-8, -5)),
-            "autoencoder_width": 128
-            if default
-            else int(np.random.choice([128, 256, 512, 1024])),
-            "autoencoder_depth": 4 if default else int(np.random.choice([3, 4, 5])),
-            "adversary_width": 64
-            if default
-            else int(np.random.choice([64, 128, 256])),
-            "adversary_depth": 3 if default else int(np.random.choice([2, 3, 4])),
+            "autoencoder_width": 128 if default else int(np.random.choice([128, 256, 512, 1024])),
+            "autoencoder_depth": 3 if default else int(np.random.choice([3, 4, 5])),
+            "adversary_width": 64 if default else int(np.random.choice([64, 128, 256])),
+            "adversary_depth": 2 if default else int(np.random.choice([2, 3, 4])),
             "reg_adversary": 60 if default else float(10 ** np.random.uniform(-10, 10)),
-            "penalty_adversary": 60
-            if default
-            else float(10 ** np.random.uniform(-10, 10)),
-            "autoencoder_lr": 4e-3
-            if default
-            else float(10 ** np.random.uniform(-4, -2)),
+            "penalty_adversary": 60 if default else float(10 ** np.random.uniform(-10, 10)),
+            "autoencoder_lr": 4e-3 if default else float(10 ** np.random.uniform(-4, -2)),
             "adversary_lr": 3e-4 if default else float(10 ** np.random.uniform(-5, -3)),
-            "autoencoder_wd": 4e-7
-            if default
-            else float(10 ** np.random.uniform(-8, -4)),
+            "autoencoder_wd": 4e-7 if default else float(10 ** np.random.uniform(-8, -4)),
             "adversary_wd": 4e-7 if default else float(10 ** np.random.uniform(-6, -3)),
             "adversary_steps": 3 if default else int(np.random.choice([1, 2, 3, 4, 5])),
-            "batch_size": 256
-            if default
-            else int(np.random.choice([64, 128, 256, 512])),
+            "batch_size": 256 if default else int(np.random.choice([64, 128, 256, 512])),
             "step_size_lr": 85 if default else int(np.random.choice([15, 25, 45])),
         }
 
