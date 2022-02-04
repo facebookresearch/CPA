@@ -429,7 +429,6 @@ class CPA(torch.nn.Module):
                 )  # TODO: Why argmax here?
 
         gene_reconstructions = self.decoder(latent_treated)
-
         if self.loss_ae == 'gauss':
             # convert variance estimates to a positive value in [1e-3, \infty)
             dim = gene_reconstructions.size(1) // 2
@@ -439,11 +438,10 @@ class CPA(torch.nn.Module):
 
         if self.loss_ae == 'nb':
             gene_means = F.softplus(gene_means).add(1e-3)
-            gene_reconstructions = torch.cat([gene_means, gene_vars], dim=1)
-            #if self.loss_ae == "nb":
-                #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
-                #gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-4, max=1e4)
-
+            #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
+            #gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-4, max=1e4)
+        gene_reconstructions = torch.cat([gene_means, gene_vars], dim=1)
+                
         if return_latent_basal:
             if return_latent_treated:
                 return gene_reconstructions, latent_basal, latent_treated
