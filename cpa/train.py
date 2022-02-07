@@ -75,7 +75,7 @@ def evaluate_disentanglement(autoencoder, dataset):
             unique_labels = set(labels)
             label_to_idx = {labels: idx for idx, labels in enumerate(unique_labels)}
             labels_tensor = torch.tensor(
-                [label_to_idx[label] for label in labels], dtype=torch.long, device="cuda"
+                [label_to_idx[label] for label in labels], dtype=torch.long, device=autoencoder.device
             )
             assert normalized_basal.size(0) == len(labels_tensor)
             dataset = torch.utils.data.TensorDataset(normalized_basal, labels_tensor)
