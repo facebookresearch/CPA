@@ -208,7 +208,9 @@ def evaluate(autoencoder, datasets):
     autoencoder.eval()
     with torch.no_grad():
         stats_test = evaluate_r2(
-            autoencoder, datasets["test_treated"], datasets["test_control"].genes
+            autoencoder, 
+            datasets["test"].subset_condition(control=False), 
+            datasets["test"].subset_condition(control=True).genes
         )
 
         disent_scores = evaluate_disentanglement(autoencoder, datasets["test"])
@@ -218,12 +220,12 @@ def evaluate(autoencoder, datasets):
         evaluation_stats = {
             "training": evaluate_r2(
                 autoencoder,
-                datasets["training_treated"],
-                datasets["training_control"].genes,
+                datasets["training"].subset_condition(control=False),
+                datasets["training"].subset_condition(control=True).genes,
             ),
             "test": stats_test,
             "ood": evaluate_r2(
-                autoencoder, datasets["ood"], datasets["test_control"].genes
+                autoencoder, datasets["ood"], datasets["test"].subset_condition(control=True).genes
             ),
             "perturbation disentanglement": stats_disent_pert,
             "optimal for perturbations": 1 / datasets["test"].num_drugs

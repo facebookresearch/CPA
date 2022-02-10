@@ -1119,7 +1119,7 @@ class API:
         """
 
         if genes_control is None:
-            genes_control = self.datasets["test_control"].genes
+            genes_control = self.datasets["test"].subset_condition(control=True).genes
 
         if contvar_min is None:
             contvar_min = 0
@@ -1200,11 +1200,14 @@ class API:
             + list(self.var_names)
         )
 
-        dataset_ctr = self.datasets["training_control"]
+        dataset_ctr = self.datasets["training"].subset_condition(control=True)
 
         i = 0
         for split in ["training_treated", "ood"]:
-            dataset = self.datasets[split]
+            if split == 'ood':
+                dataset = self.datasets[split]
+            else:
+                dataset = self.datasets["training"].subset_condition(control=False)
             for pert in self.seen_covars_perts[split]:
                 *covars, drug, dose_val = pert.split("_")
                 if drug in perturbations:
@@ -1285,7 +1288,7 @@ class API:
 
         # genes_control = dataset.genes[dataset.indices['control']]
         if genes_control is None:
-            genes_control = self.datasets["test_control"].genes
+            genes_control = self.datasets["test"].subset_condition(control=True).genes
 
         ncells_max = min(ncells_max, len(genes_control))
         idx = torch.LongTensor(np.random.choice(range(len(genes_control)), ncells_max))

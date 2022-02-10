@@ -188,7 +188,7 @@ class Dataset:
             # Store as attribute for molecular featurisation
             self.encoder_drug = encoder_drug
 
-            self.atomic_drugs_dict = dict(
+            self.perts_dict = dict(
                 zip(
                     self.drugs_names_unique,
                     encoder_drug.transform(self.drugs_names_unique.reshape(-1, 1)),
@@ -222,7 +222,7 @@ class Dataset:
             self.drugs_names = None
             self.dose_names = None
             self.drugs_names_unique = None
-            self.atomic_drugs_dict = None
+            self.perts_dict = None
             self.drug_dict = None
             self.drugs = None
 
@@ -231,7 +231,7 @@ class Dataset:
                 raise ValueError(f"Duplicate keys were given in: {covariate_keys}")
             self.covariate_names = {}
             self.covariate_names_unique = {}
-            self.atomic_сovars_dict = {}
+            self.covars_dict = {}
             self.covariates = []
             for cov in covariate_keys:
                 self.covariate_names[cov] = np.array(data.obs[cov].values)
@@ -241,7 +241,7 @@ class Dataset:
                 encoder_cov = OneHotEncoder(sparse=False)
                 encoder_cov.fit(names.reshape(-1, 1))
 
-                self.atomic_сovars_dict[cov] = dict(
+                self.covars_dict[cov] = dict(
                     zip(list(names), encoder_cov.transform(names.reshape(-1, 1)))
                 )
 
@@ -252,7 +252,7 @@ class Dataset:
         else:
             self.covariate_names = None
             self.covariate_names_unique = None
-            self.atomic_сovars_dict = None
+            self.covars_dict = None
             self.covariates = None
 
         if perturbation_key is not None:
@@ -270,7 +270,7 @@ class Dataset:
             self.num_covariates = [0]
         self.num_genes = self.genes.shape[1]
         self.num_drugs = len(self.drugs_names_unique) if self.drugs is not None else 0
-
+        self.is_control = data.obs["control"].values.astype(bool)
         self.indices = {
             "all": list(range(len(self.genes))),
             "control": np.where(data.obs["control"] == 1)[0].tolist(),
@@ -305,8 +305,8 @@ class SubDataset:
         self.dose_key = dataset.dose_key
         self.covariate_keys = dataset.covariate_keys
 
-        self.perts_dict = dataset.atomic_drugs_dict
-        self.covars_dict = dataset.atomic_сovars_dict
+        self.perts_dict = dataset.perts_dict
+        self.covars_dict = dataset.covars_dict
 
         self.genes = dataset.genes[indices]
         self.drugs = indx(dataset.drugs, indices)
@@ -325,6 +325,7 @@ class SubDataset:
         self.num_covariates = dataset.num_covariates
         self.num_genes = dataset.num_genes
         self.num_drugs = dataset.num_drugs
+        self.is_control = dataset.is_control[indices]
 
     def __getitem__(self, i):
         return (
@@ -332,6 +333,10 @@ class SubDataset:
             indx(self.drugs, i),
             *[indx(cov, i) for cov in self.covariates],
         )
+
+    def subset_condition(self, control=True):
+        idx = np.where(self.is_control == control)[0].tolist()
+        return SubDataset(self, idx)
 
     def __len__(self):
         return len(self.genes)
@@ -353,11 +358,11 @@ def load_dataset_splits(
 
     splits = {
         "training": dataset.subset("train", "all"),
-        "training_control": dataset.subset("train", "control"),
-        "training_treated": dataset.subset("train", "treated"),
+        #"training_control": dataset.subset("train", "control"),
+        #"training_treated": dataset.subset("train", "treated"),
         "test": dataset.subset("test", "all"),
-        "test_control": dataset.subset("test", "control"),
-        "test_treated": dataset.subset("test", "treated"),
+        #"test_control": dataset.subset("test", "control"),
+        #"test_treated": dataset.subset("test", "treated"),
         "ood": dataset.subset("ood", "all"),
     }
 
