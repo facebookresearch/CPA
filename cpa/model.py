@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
+from http.client import RemoteDisconnected
 import json
 
 import numpy as np
@@ -47,7 +48,7 @@ def _nan2inf(x):
 
 class GaussianLoss(torch.nn.Module):
     """
-    Gaussian log-likelihood loss. It assumes targets `y` with n rows and d
+    Gaussian negative log-likelihood loss. It assumes targets `y` with n rows and d
     columns, but estimates `yhat` with n rows and 2d columns. The columns 0:d
     of `yhat` contain estimated means, the columns d:2*d of `yhat` contain
     estimated variances. This module assumes that the estimated variances are
@@ -402,7 +403,7 @@ class CPA(torch.nn.Module):
                 emb = emb.to(self.device)
                 latent_treated = latent_treated + emb(
                     covariates[i].argmax(1)
-                )  # TODO: Why argmax here?
+                )  #argmax because OHE
 
         gene_reconstructions = self.decoder(latent_treated)
         if self.loss_ae == 'gauss':

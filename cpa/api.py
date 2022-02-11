@@ -900,7 +900,7 @@ class API:
                 covars.append(covar_ohe.expand([num, covar_ohe.shape[0]]).clone())
 
             gene_reconstructions = (
-                self.model.predict(genes, drugs, covars).cpu().clone().detach().numpy()
+                self.model.predict(genes, drugs, covars).cpu().detach().numpy()
             )
 
             if sample:
@@ -978,6 +978,7 @@ class API:
                 adata.layers["variance"] = gene_vars
 
             adata.obs.index = adata.obs.index.astype(str)  # type fix
+            del gene_means, gene_vars, df_obs
             return adata
         else:
             return gene_means, gene_vars, df_obs
