@@ -74,6 +74,18 @@ class Dataset:
     ):
         if type(data) == str:
             data = sc.read(data)
+        #Assert that keys are present in the adata object
+        assert perturbation_key in data.obs, f"Perturbation {perturbation_key} is missing in the provided adata"
+        for key in covariate_keys:
+            assert key in data.obs, f"Covariate {key} is missing in the provided adata"
+        assert dose_key in data.obs, f"Dose {dose_key} is missing in the provided adata"
+        assert split_key in data.obs, f"Split {split_key} is missing in the provided adata"
+        assert not (split_key is None), "split_key can not be None"
+
+        #If covariate keys is empty list create dummy covariate
+        if len(covariate_keys) == 0:
+            data.obs['dummy_cov'] == 'dummy_cov'
+            covariate_keys = ['dummy_cov']
 
         self.perturbation_key = perturbation_key
         self.dose_key = dose_key
@@ -84,10 +96,6 @@ class Dataset:
             self.genes = torch.Tensor(data.X)
 
         self.var_names = data.var_names
-        assert (
-            len(covariate_keys) > 0
-        ), "please provide name for dummy covariate. Can not be empty list"
-        assert not (split_key is None), "split_key can not be None"
 
         if isinstance(covariate_keys, str):
             covariate_keys = [covariate_keys]
