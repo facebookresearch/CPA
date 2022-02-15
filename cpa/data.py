@@ -75,11 +75,11 @@ class Dataset:
         if type(data) == str:
             data = sc.read(data)
         #Assert that keys are present in the adata object
-        assert perturbation_key in data.obs, f"Perturbation {perturbation_key} is missing in the provided adata"
+        assert perturbation_key in data.obs.columns, f"Perturbation {perturbation_key} is missing in the provided adata"
         for key in covariate_keys:
-            assert key in data.obs, f"Covariate {key} is missing in the provided adata"
-        assert dose_key in data.obs, f"Dose {dose_key} is missing in the provided adata"
-        assert split_key in data.obs, f"Split {split_key} is missing in the provided adata"
+            assert key in data.obs.columns, f"Covariate {key} is missing in the provided adata"
+        assert dose_key in data.obs.columns, f"Dose {dose_key} is missing in the provided adata"
+        assert split_key in data.obs.columns, f"Split {split_key} is missing in the provided adata"
         assert not (split_key is None), "split_key can not be None"
 
         #If covariate keys is empty list create dummy covariate
