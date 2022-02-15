@@ -51,7 +51,7 @@ class API:
             AnndData object or a full path to the file in the .h5ad format.
         covariate_keys : list (default: ['cell_type'])
             List of names in the .obs of AnnData that should be used as
-            covariates. #TODO handel empty list.
+            covariates.
         split_key : str (default: 'split')
             Name of the column in .obs of AnnData to use for splitting the
             dataset into train, test and validation.
@@ -84,6 +84,19 @@ class API:
         hparams : dict (default: {})
             Parameters for the architecture of the CPA model.
         """
+
+        #Assert that keys are present in the adata object
+        assert perturbation_key in adata.obs, f"Perturbation {perturbation_key} is missing in the provided adata"
+        for key in covariate_keys:
+            assert key in adata.obs, f"Covariate {key} is missing in the provided adata"
+        assert dose_key in adata.obs, f"Dose {dose_key} is missing in the provided adata"
+        assert split_key in adata.obs, f"Split {split_key} is missing in the provided adata"
+
+        #If covariate keys is empty list create dummy covariate
+        if len(covariate_keys) == 0:
+            adata.obs['dummy_cov'] == 'dummy_cov'
+            covariate_keys = ['dummy_cov']
+
         args = locals()
         del args["self"]
 
@@ -900,7 +913,7 @@ class API:
                 covars.append(covar_ohe.expand([num, covar_ohe.shape[0]]).clone())
 
             gene_reconstructions = (
-                self.model.predict(genes, drugs, covars).cpu().detach().numpy()
+                self.model.predict(genes, drugs, covars).cpu().clone().detach().numpy()
             )
 
             if sample:
