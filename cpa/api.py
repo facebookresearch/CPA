@@ -85,18 +85,6 @@ class API:
             Parameters for the architecture of the CPA model.
         """
 
-        #Assert that keys are present in the adata object
-        assert perturbation_key in adata.obs, f"Perturbation {perturbation_key} is missing in the provided adata"
-        for key in covariate_keys:
-            assert key in adata.obs, f"Covariate {key} is missing in the provided adata"
-        assert dose_key in adata.obs, f"Dose {dose_key} is missing in the provided adata"
-        assert split_key in adata.obs, f"Split {split_key} is missing in the provided adata"
-
-        #If covariate keys is empty list create dummy covariate
-        if len(covariate_keys) == 0:
-            adata.obs['dummy_cov'] == 'dummy_cov'
-            covariate_keys = ['dummy_cov']
-
         args = locals()
         del args["self"]
 

@@ -84,7 +84,7 @@ class Dataset:
 
         #If covariate keys is empty list create dummy covariate
         if len(covariate_keys) == 0:
-            data.obs['dummy_cov'] == 'dummy_cov'
+            data.obs['dummy_cov'] = 'dummy_cov'
             covariate_keys = ['dummy_cov']
 
         self.perturbation_key = perturbation_key
