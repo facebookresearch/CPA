@@ -329,13 +329,12 @@ class CPA(torch.nn.Module):
             "adversary_depth": 2 if default else int(np.random.choice([2, 3, 4])),
             "reg_adversary": 60 if default else float(10 ** np.random.uniform(-10, 10)),
             "penalty_adversary": 60 if default else float(10 ** np.random.uniform(-10, 10)),
-            "autoencoder_lr": 4e-3 if default else float(10 ** np.random.uniform(-4, -2)),
             "adversary_lr": 3e-4 if default else float(10 ** np.random.uniform(-5, -3)),
             "autoencoder_wd": 4e-7 if default else float(10 ** np.random.uniform(-8, -4)),
             "adversary_wd": 4e-7 if default else float(10 ** np.random.uniform(-6, -3)),
             "adversary_steps": 3 if default else int(np.random.choice([1, 2, 3, 4, 5])),
             "batch_size": 256 if default else int(np.random.choice([64, 128, 256, 512])),
-            "step_size_lr": 85 if default else int(np.random.choice([15, 25, 45])),
+            "step_size_lr": 45 if default else int(np.random.choice([15, 25, 45])),
         }
 
         # the user may fix some hparams
