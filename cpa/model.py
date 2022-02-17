@@ -301,6 +301,7 @@ class CPA(torch.nn.Module):
             "adversary_depth": 2,
             "reg_adversary": 60,
             "penalty_adversary": 60,
+            "autoencoder_lr": 3e-4,
             "adversary_lr": 3e-4,
             "autoencoder_wd": 4e-7,
             "adversary_wd": 4e-7,
