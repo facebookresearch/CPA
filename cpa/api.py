@@ -28,10 +28,11 @@ class API:
     def __init__(
         self,
         data,
+        perturbation_key="condition",
         covariate_keys=["cell_type"],
         split_key="split",
-        perturbation_key="condition",
         dose_key="dose_val",
+        control=None,
         doser_type="mlp",
         decoder_activation="linear",
         loss_ae="gauss",
@@ -42,7 +43,6 @@ class API:
         save_dir="/tmp/",  # directory to save the model
         hparams={},
         only_parameters=False,
-        control=None,
     ):
         """
         Parameters
@@ -61,21 +61,21 @@ class API:
         dose_key : str (default: 'dose_val')
             Name of the column in .obs of AnnData to use for continious
             covariate.
-        doser_type : str (default: 'logsigm')
+        doser_type : str (default: 'mlp')
             Type of the nonlinearity in the latent space for the continious
             covariate encoding: sigm, logsigm, mlp.
         decoder_activation : str (default: 'linear')
             Last layer of the decoder.
         loss_ae : str (default: 'gauss')
             Loss (currently only gaussian loss is supported).
-        patience : int (default: 20)
+        patience : int (default: 200)
             Patience for early stopping.
-        seed : int (default: 20)
+        seed : int (default: 0)
             Random seed.
-        sweep_seeds : int (default: 0)
-            Random seed. #TODO check  if I can remove it.
         pretrained : str (default: None)
             Full path to the pretrained model.
+        only_parameters : bool (default: False)
+            Whether to load only arguments or also weights from pretrained model.
         save_dir : str (default: '/tmp/')
             Folder to save the model.
         device : str (default: 'cpu')
@@ -83,6 +83,9 @@ class API:
             available.
         hparams : dict (default: {})
             Parameters for the architecture of the CPA model.
+        control: str
+            Obs columns with booleans that identify control. If it is not provided
+            the model will look for them in adata.obs["control"]
         """
 
         args = locals()
@@ -106,7 +109,6 @@ class API:
             state = None
             self.args = args
 
-        # pprint.pprint(self.args)
         self.model, self.datasets = prepare_cpa(self.args, state_dict=state)
         if not (pretrained is None) and (not only_parameters):
             self.model.history = self.history
@@ -257,9 +259,6 @@ class API:
         """
         args = locals()
         del args["self"]
-        # print('Training...')
-        # pprint.pprint(args)
-        #
 
         if batch_size is None:
             batch_size = self.model.hparams["batch_size"]
@@ -278,8 +277,6 @@ class API:
             }
         )
 
-        # pjson({"training_args": args})
-        # pjson({"autoencoder_params": self.model.hparams})
         self.model.train()
 
         start_time = time.time()
@@ -779,15 +776,10 @@ class API:
         if self.comb_emb is None:
             self.compute_comb_emb(thrh=30)
 
-        # covar_ohe = torch.Tensor(
-        #         self.covars_dict[cov]
-        #     ).to(self.model.device)
-
         drug_ohe = torch.Tensor(self._get_drug_encoding(pert, doses=dose)).to(
             self.model.device
         )
 
-        # cov = covar_ohe.expand([1, self.covars_ohe.shape[1]])
         pert = drug_ohe.expand([1, self.drug_ohe.shape[1]])
 
         drug_emb = self.model.compute_drug_embeddings_(pert).detach().cpu().numpy()
@@ -795,7 +787,6 @@ class API:
         cond_emb = drug_emb
         for cov_key in cov:
             cond_emb += self.emb_covars[cov_key][cov[cov_key]]
-            # self.model.cell_type_embeddings(cov.argmax(1)).detach().cpu().numpy()
 
         cos_dist = cosine_distances(cond_emb, self.comb_emb.X)[0]
         min_cos_dist = np.min(cos_dist)
@@ -1129,7 +1120,6 @@ class API:
             contvar_max = self.max_dose
 
         self.model.eval()
-        # doses = torch.Tensor(np.linspace(contvar_min, contvar_max, n_points))
         if doses is None:
             doses = np.linspace(contvar_min, contvar_max, n_points)
 
