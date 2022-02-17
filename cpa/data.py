@@ -367,11 +367,7 @@ def load_dataset_splits(
 
     splits = {
         "training": dataset.subset("train", "all"),
-        #"training_control": dataset.subset("train", "control"),
-        #"training_treated": dataset.subset("train", "treated"),
         "test": dataset.subset("test", "all"),
-        #"test_control": dataset.subset("test", "control"),
-        #"test_treated": dataset.subset("test", "treated"),
         "ood": dataset.subset("ood", "all"),
     }
 
