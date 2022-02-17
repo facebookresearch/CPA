@@ -10,11 +10,7 @@ import numpy as np
 import torch
 from cpa.data import load_dataset_splits
 from cpa.model import CPA, MLP
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import balanced_accuracy_score, r2_score
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
 from torch.autograd import Variable
 from torch.distributions import NegativeBinomial
 from torch import nn
@@ -78,6 +74,7 @@ def evaluate_disentanglement(autoencoder, dataset):
                 [label_to_idx[label] for label in labels], dtype=torch.long, device=autoencoder.device
             )
             assert normalized_basal.size(0) == len(labels_tensor)
+            #might have to perform a train/test split here
             dataset = torch.utils.data.TensorDataset(normalized_basal, labels_tensor)
             data_loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
 

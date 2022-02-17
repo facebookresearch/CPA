@@ -251,6 +251,7 @@ def evaluate_r2_(adata, pred_adata, condition_key, sampled=False):
         )
     r2_df = pd.DataFrame(r2_list).set_index('condition')
     return r2_df
+    
 def evaluate_mmd(adata, pred_adata, condition_key):
     mmd_list = []
     for cond in pred_adata.obs[condition_key].unique():
