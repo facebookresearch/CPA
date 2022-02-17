@@ -441,7 +441,7 @@ class CPA(torch.nn.Module):
 
         adversary_covariates_loss = torch.tensor(
             [0.0], device=self.device
-        )  # TODO: Is one scalar enough?
+        )
         if self.num_covariates[0] > 0:
             adversary_covariate_predictions = []
             for i, adv in enumerate(self.adversary_covariates):
@@ -510,4 +510,4 @@ class CPA(torch.nn.Module):
         Returns the list of default hyper-parameters for CPA
         """
 
-        return self.set_hparams_(self, 0, "")
+        return self.set_hparams_(self, "")
