@@ -84,7 +84,7 @@ class Dataset:
 
         #If covariate keys is empty list create dummy covariate
         if len(covariate_keys) == 0:
-            "Adding a dummy covariate..."
+            print("Adding a dummy covariate...")
             data.obs['dummy_cov'] = 'dummy_cov'
             covariate_keys = ['dummy_cov']
 
