@@ -861,11 +861,6 @@ class API:
         num = genes.shape[0]
         dim = genes.shape[1]
         genes = torch.Tensor(genes).to(self.model.device)
-        if sample:
-            print(
-                "Careful! These are sampled values! Better use means and \
-                variances for dowstream tasks!"
-            )
 
         gene_means_list = []
         gene_vars_list = []
@@ -1084,7 +1079,7 @@ class API:
         n_points=10,
         ncells_max=100,
         perturbations=None,
-        control_name="test_control",
+        control_name="test",
     ):
         """Decoded dose response data frame.
 
@@ -1139,32 +1134,31 @@ class API:
             )
             genes_control = genes_control[idx]
 
-        i = 0
+        j = 0
         for covar_combo in self.emb_covars_combined:
             cov_dict = {}
             for i, cov_val in enumerate(covar_combo.split("_")):
                 cov_dict[self.covariate_keys[i]] = [cov_val]
+                print(cov_dict)
+                for _, drug in enumerate(perturbations):
+                    if not (drug in self.datasets[control_name].subset_condition(control=True).ctrl_name):
+                        for dose in doses:
+                            # TODO handle covars
 
-            for idr, drug in enumerate(perturbations):
-                if not (drug in self.datasets[control_name].ctrl_name):
-                    for dose in doses:
-                        # TODO handle covars
-
-                        gene_means, _, _ = self.predict(
-                            genes_control,
-                            cov=cov_dict,
-                            pert=[drug],
-                            dose=[dose],
-                            return_anndata=False,
-                        )
-                        predicted_data = np.mean(gene_means, axis=0).reshape(-1)
-
-                        response.loc[i] = (
-                            covar_combo.split("_")
-                            + [drug, dose, np.linalg.norm(predicted_data)]
-                            + list(predicted_data)
-                        )
-                        i += 1
+                            gene_means, _, _ = self.predict(
+                                genes_control,
+                                cov=cov_dict,
+                                pert=[drug],
+                                dose=[dose],
+                                return_anndata=False,
+                            )
+                            predicted_data = np.mean(gene_means, axis=0).reshape(-1)
+                            response.loc[j] = (
+                                covar_combo.split("_")
+                                + [drug, dose, np.linalg.norm(predicted_data)]
+                                + list(predicted_data)
+                            )
+                            j += 1
         return response
 
     def get_response_reference(self, perturbations=None):
@@ -1195,7 +1189,7 @@ class API:
         dataset_ctr = self.datasets["training"].subset_condition(control=True)
 
         i = 0
-        for split in ["training_treated", "ood"]:
+        for split in ["training", "ood"]:
             if split == 'ood':
                 dataset = self.datasets[split]
             else:
@@ -1235,8 +1229,8 @@ class API:
         contvar_max=None,
         n_points=10,
         ncells_max=100,
-        fixed_drugs="",
-        fixed_doses="",
+        #fixed_drugs="",
+        #fixed_doses="",
     ):
         """Decoded dose response data frame.
 
@@ -1287,7 +1281,7 @@ class API:
         genes_control = genes_control[idx]
 
         response = pd.DataFrame(
-            columns=perturbations + ["response"] + list(self.var_names)
+            columns=perturbations+["response"]+list(self.var_names)
         )
 
         drug = perturbations[0] + "+" + perturbations[1]
@@ -1296,18 +1290,16 @@ class API:
         dose_comb = [list(d) for d in itertools.product(*[doses, doses])]
 
         i = 0
-        if not (drug in ["Vehicle", "EGF", "unst", "control", "ctrl"]):
+        if not (drug in self.datasets['training'].subset_condition(control=True).ctrl_name):
             for dose in dose_vals:
                 gene_means, _, _ = self.predict(
                     genes_control,
                     cov=covar,
-                    pert=[drug + fixed_drugs],
-                    dose=[dose + fixed_doses],
+                    pert=[drug],# + fixed_drugs],
+                    dose=[dose],# + fixed_doses],
                     return_anndata=False,
                 )
-
                 predicted_data = np.mean(gene_means, axis=0).reshape(-1)
-
                 response.loc[i] = (
                     dose_comb[i]
                     + [np.linalg.norm(predicted_data)]
@@ -1315,9 +1307,29 @@ class API:
                 )
                 i += 1
 
+        # i = 0
+        # if not (drug in ["Vehicle", "EGF", "unst", "control", "ctrl"]):
+        #     for dose in dose_vals:
+        #         gene_means, _, _ = self.predict(
+        #             genes_control,
+        #             cov=covar,
+        #             pert=[drug + fixed_drugs],
+        #             dose=[dose + fixed_doses],
+        #             return_anndata=False,
+        #         )
+
+        #         predicted_data = np.mean(gene_means, axis=0).reshape(-1)
+
+        #         response.loc[i] = (
+        #             dose_comb[i]
+        #             + [np.linalg.norm(predicted_data)]
+        #             + list(predicted_data)
+        #         )
+        #         i += 1
+
         return response
 
-    def evaluate_r2(self, dataset, genes_control):
+    def evaluate_r2(self, dataset, genes_control, adata_random=None):
         """
         Measures different quality metrics about an CPA `autoencoder`, when
         tasked to translate some `genes_control` into each of the drug/cell_type
@@ -1337,6 +1349,7 @@ class API:
                 "R2_mean_DE",
                 "R2_var",
                 "R2_var_DE",
+                "model",
                 "num_cells",
             ]
         )
@@ -1377,6 +1390,7 @@ class API:
                 # predicted means and variances
                 yp_m = mean_predict.mean(0)
                 yp_v = var_predict.mean(0)
+                #yp_v = np.var(mean_predict, axis=0)
 
                 mean_score = r2_score(yt_m, yp_m)
                 var_score = r2_score(yt_v, yp_v)
@@ -1389,12 +1403,31 @@ class API:
                     mean_score_de,
                     var_score,
                     var_score_de,
+                    "cpa",
                     len(idx),
                 ]
                 icond += 1
+                if adata_random is not None:
+                    yp_m_bl = np.mean(adata_random, axis=0)
+                    yp_v_bl = np.var(adata_random, axis=0)
 
+                    mean_score_bl = r2_score(yt_m, yp_m_bl)
+                    var_score_bl = r2_score(yt_v, yp_v_bl)
+
+                    mean_score_de_bl = r2_score(yt_m[de_idx], yp_m_bl[de_idx])
+                    var_score_de_bl = r2_score(yt_v[de_idx], yp_v_bl[de_idx])
+
+
+                    scores.loc[icond] = pert_category.split("_") + [
+                        mean_score_bl,
+                        mean_score_de_bl,
+                        var_score_bl,
+                        var_score_de_bl,
+                        "baseline",
+                        len(idx),
+                    ]
+                    icond += 1
         return scores
-
 
 def get_reference_from_combo(perturbations_list, datasets, splits=["training", "ood"]):
     """

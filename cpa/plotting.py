@@ -179,7 +179,6 @@ class CPAVisuals:
         alpha=0.4,
         sizes=(40, 160),
         logdose=False,
-        file_format="png",
     ):
 
         """
@@ -340,8 +339,8 @@ class CPAVisuals:
         if palette is None:
             if var_name == self.perturbation_key:
                 palette = self.perts_palette
-            elif var_name == self.covars_key:
-                palette = self.covars_palette
+            elif var_name in self.covariate_keys:
+                palette = self.covars_palette[var_name]
 
         plot_dose_response(
             df_response,
@@ -361,7 +360,7 @@ class CPAVisuals:
             measured_points=measured_points,
             bbox=bbox,
             fontsize=fontsize,
-            format="png",
+            figformat="png",
         )
 
     def plot_scatter(
@@ -497,7 +496,7 @@ def plot_dose_response(
     fname=None,
     logscale=None,
     xlabelname=None,
-    format="png",
+    figformat="png",
 ):
 
     """Plotting decoding of the response with respect to dose.
@@ -557,7 +556,6 @@ def plot_dose_response(
 
     fig = plt.figure(figsize=(f1, f2))
     ax = plt.gca()
-
     if use_ref_response:
         sns.lineplot(
             x=contvar_key,
@@ -632,10 +630,9 @@ def plot_dose_response(
                         linewidth=0.5,
                         alpha=0.5,
                     )
-
     fig.tight_layout()
     if fname:
-        plt.savefig(f"{fname}.{format}", format=format)
+        plt.savefig(f"{fname}.{figformat}", format=figformat, dpi=600)
 
     return fig
 
@@ -648,6 +645,7 @@ def plot_uncertainty_comb_dose(
     metric="cosine",
     measured_points=None,
     cond_key="condition",
+    figsize=(4, 4),
     vmin=None,
     vmax=None,
     sizes=(40, 160),
@@ -656,7 +654,7 @@ def plot_uncertainty_comb_dose(
     ylims=(0, 1.03),
     fixed_drugs="",
     fixed_doses="",
-    title=True,
+    title="",
     filename=None,
 ):
     """Plotting uncertainty for a single perturbation at a dose range for a
@@ -728,13 +726,11 @@ def plot_uncertainty_comb_dose(
     Y = np.array(doses.apply(lambda x: x[1]).astype(float)).reshape(N, N)
     Z = np.array(df_pred[f"uncertainty_{metric}"].values.astype(float)).reshape(N, N)
 
-    fig, ax = plt.subplots(1, 1)
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
     CS = ax.contourf(X, Y, Z, cmap="coolwarm", levels=20, alpha=1, vmin=vmin, vmax=vmax)
 
     ax.set_xlabel(pert.split("+")[0], fontweight="bold")
     ax.set_ylabel(pert.split("+")[1], fontweight="bold")
-    if title:
-        ax.set_title(cov_name)
 
     if not (df_ref is None):
         sns.scatterplot(
@@ -763,11 +759,11 @@ def plot_uncertainty_comb_dose(
     ax.axis("square")
     ax.set_xlim(xlims)
     ax.set_ylim(ylims)
-
+    ax.set_title(title, fontsize=10, fontweight='bold')
     plt.tight_layout()
 
     if filename:
-        plt.savefig(filename)
+        plt.savefig(filename, dpi=600)
 
     return df_pred
 
@@ -894,7 +890,7 @@ def save_to_file(fig, file_name, file_format=None):
     else:
         savename = file_name
 
-    fig.savefig(savename, format=file_format)
+    fig.savefig(savename, format=file_format, dpi=600)
     print(f"Saved file to: {savename}")
 
 
@@ -984,7 +980,7 @@ def plot_embedding(
                     np.mean(emb[idx_label, 0]),
                     np.mean(emb[idx_label, 1]),
                     label,
-                    fontsize=fontsize,
+                    #fontsize=fontsize,
                 )
             )
 
@@ -997,12 +993,12 @@ def plot_embedding(
         ax.axis("square")
 
     if title:
-        ax.set_title(title, fontsize=fontsize, fontweight="bold")
+        ax.set_title(title, fontweight="bold")
 
-    ax.set_xlabel("dim1", fontsize=fontsize)
-    ax.set_ylabel("dim2", fontsize=fontsize)
-    ax.xaxis.set_tick_params(labelsize=fontsize)
-    ax.yaxis.set_tick_params(labelsize=fontsize)
+    ax.set_xlabel("dim1"),# fontsize=fontsize)
+    ax.set_ylabel("dim2"),# fontsize=fontsize)
+    #ax.xaxis.set_tick_params(labelsize=fontsize)
+    #ax.yaxis.set_tick_params(labelsize=fontsize)
 
     plt.tight_layout()
 

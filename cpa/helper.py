@@ -224,7 +224,34 @@ def rank_genes_groups(
     if return_dict:
         return gene_dict
 
-def evaluate_r2_(adata, pred_adata, condition_key, sampled=False):
+# def evaluate_r2_(adata, pred_adata, condition_key, sampled=False):
+#     r2_list = []
+#     if issparse(adata.X): 
+#         adata.X = adata.X.A
+#     if issparse(pred_adata.X): 
+#         pred_adata.X = pred_adata.X.A
+#     for cond in pred_adata.obs[condition_key].unique():
+#         adata_ = adata[adata.obs[condition_key] == cond]
+#         pred_adata_ = pred_adata[pred_adata.obs[condition_key] == cond]
+#         r2_mean = r2_score(adata_.X.mean(0), pred_adata_.X.mean(0))
+#         if sampled:
+#             r2_var = r2_score(adata_.X.var(0), pred_adata_.X.var(0))
+#         else:
+#             r2_var = r2_score(
+#                 adata_.X.var(0), 
+#                 pred_adata_.layers['variance'].var(0)
+#             )
+#         r2_list.append(
+#             {
+#                 'condition': cond,
+#                 'r2_mean': r2_mean,
+#                 'r2_var': r2_var,
+#             }
+#         )
+#     r2_df = pd.DataFrame(r2_list).set_index('condition')
+#     return r2_df
+
+def evaluate_r2_(adata, pred_adata, condition_key, sampled=False, de_genes_dict=None):
     r2_list = []
     if issparse(adata.X): 
         adata.X = adata.X.A
@@ -233,7 +260,6 @@ def evaluate_r2_(adata, pred_adata, condition_key, sampled=False):
     for cond in pred_adata.obs[condition_key].unique():
         adata_ = adata[adata.obs[condition_key] == cond]
         pred_adata_ = pred_adata[pred_adata.obs[condition_key] == cond]
-
         r2_mean = r2_score(adata_.X.mean(0), pred_adata_.X.mean(0))
         if sampled:
             r2_var = r2_score(adata_.X.var(0), pred_adata_.X.var(0))
@@ -249,10 +275,24 @@ def evaluate_r2_(adata, pred_adata, condition_key, sampled=False):
                 'r2_var': r2_var,
             }
         )
+        if de_genes_dict:
+            de_genes = de_genes_dict[cond]
+            sub_adata_ = adata_[:, de_genes]
+            sub_pred_adata_ = pred_adata_[:, de_genes]
+            r2_mean_deg = r2_score(sub_adata_.X.mean(0), sub_pred_adata_.X.mean(0))
+            if sampled:
+                r2_var_deg = r2_score(sub_adata_.X.var(0), sub_pred_adata_.X.var(0))
+            else:
+                r2_var_deg = r2_score(
+                    sub_adata_.X.var(0), 
+                    sub_pred_adata_.layers['variance'].var(0)
+                )
+            r2_list[-1]['r2_mean_deg'] = r2_mean_deg
+            r2_list[-1]['r2_var_deg'] = r2_var_deg
     r2_df = pd.DataFrame(r2_list).set_index('condition')
     return r2_df
     
-def evaluate_mmd(adata, pred_adata, condition_key):
+def evaluate_mmd(adata, pred_adata, condition_key, de_genes_dict=None):
     mmd_list = []
     for cond in pred_adata.obs[condition_key].unique():
         adata_ = adata[adata.obs[condition_key] == cond].copy()
@@ -269,10 +309,16 @@ def evaluate_mmd(adata, pred_adata, condition_key):
                 'mmd': mmd.detach().cpu().numpy()
             }
         )
+        if de_genes_dict:
+            de_genes = de_genes_dict[cond]
+            sub_adata_ = adata_[:, de_genes]
+            sub_pred_adata_ = pred_adata_[:, de_genes]
+            mmd_deg = mmd_loss_calc(torch.Tensor(sub_adata_.X), torch.Tensor(sub_pred_adata_.X))
+            mmd_list[-1]['mmd_deg'] = mmd_deg.detach().cpu().numpy()
     mmd_df = pd.DataFrame(mmd_list).set_index('condition')
     return mmd_df
 
-def evaluate_emd(adata, pred_adata, condition_key):
+def evaluate_emd(adata, pred_adata, condition_key, de_genes_dict=None):
     emd_list = []
     for cond in pred_adata.obs[condition_key].unique():
         adata_ = adata[adata.obs[condition_key] == cond].copy()
@@ -292,6 +338,16 @@ def evaluate_emd(adata, pred_adata, condition_key):
                 'emd': np.mean(wd)
             }
         )
+        if de_genes_dict:
+            de_genes = de_genes_dict[cond]
+            sub_adata_ = adata_[:, de_genes]
+            sub_pred_adata_ = pred_adata_[:, de_genes]
+            wd_deg = []
+            for i, _ in enumerate(sub_adata_.var_names):
+                wd_deg.append(
+                    wasserstein_distance(torch.Tensor(sub_adata_.X[:, i]), torch.Tensor(sub_pred_adata_.X[:, i]))
+                )
+            emd_list[-1]['emd_deg'] = np.mean(wd_deg)
     emd_df = pd.DataFrame(emd_list).set_index('condition')
     return emd_df
 
