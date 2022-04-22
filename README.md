@@ -16,14 +16,14 @@ Theis (https://github.com/theislab) from Helmholtz Zentrum München.
 
 ## Package Structure
 
-The repository is centered around the `compert` module:
+The repository is centered around the `cpa` module:
 
-* [`compert.train`](compert/train.py) contains scripts to train the model.
-* [`compert.api`](compert/api.py) contains user friendly scripts to interact with the model via scanpy.
-* [`compert.plotting`](compert/plotting.py) contains scripts to plotting functions.
-* [`compert.model`](compert/model.py) contains modules of compert model.
-* [`compert.data`](compert/data.py) contains data loader, which transforms anndata structure to a class compatible with compert model.
-* [`compert.collect_results`](compert/collect_results.py) contains script for automatic model selection from sweeps.
+* [`cpa.train`](cpa/train.py) contains scripts to train the model.
+* [`cpa.api`](cpa/api.py) contains user friendly scripts to interact with the model via scanpy.
+* [`cpa.plotting`](cpa/plotting.py) contains scripts to plotting functions.
+* [`cpa.model`](cpa/model.py) contains modules of cpa model.
+* [`cpa.data`](cpa/data.py) contains data loader, which transforms anndata structure to a class compatible with cpa model.
+* [`cpa.collect_results`](cpa/collect_results.py) contains script for automatic model selection from sweeps.
 
 Additional files and folders:
 
@@ -57,9 +57,9 @@ necessary fields for multiple datasets used in the paper can be found in [`prepr
 
 ## Training a model
 
-There are two ways to train a compert model:
+There are two ways to train a cpa model:
 
-* Using the command line, e.g.: `python -m compert.train --dataset_path datasets/GSM_new.h5ad  --save_dir /tmp --max_epochs 1 --doser_type sigm`
+* Using the command line, e.g.: `python -m cpa.train --data datasets/GSM_new.h5ad  --save_dir /tmp --max_epochs 1 --doser_type sigm`
 * From jupyter notebook: example in [`./notebooks/demo.ipynb`](notebooks/demo.ipynb)
 
 ## Testing
@@ -72,13 +72,13 @@ Run `python ./scripts/run_one_epoch.sh` to perfrom automatic testing for one epo
 Currently you can access the documentation via `help` function in IPython. For example:
 
 ```python
-from compert.api import ComPertAPI
+from cpa.api import API
 
-help(ComPertAPI)
+help(API)
 
-from compert.plotting import CompertVisuals
+from cpa.plotting import CPAVisuals
 
-help(CompertVisuals)
+help(CPAVisuals)
 
 ```
 
