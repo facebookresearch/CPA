@@ -104,14 +104,13 @@ def evaluate_disentanglement(autoencoder, dataset):
 
     if dataset.perturbation_key is not None:
         pert_scores = compute_score(dataset.drugs_names)
+    cov_scores = []
     for cov in list(dataset.covariate_names):
-        cov_scores = []
         if len(np.unique(dataset.covariate_names[cov])) == 0:
-            cov_scores = [0]
-            break
+            cov_scores.append([0])
         else:
             cov_scores.append(compute_score(dataset.covariate_names[cov]))
-        return [np.mean(pert_scores), *[np.mean(cov_score) for cov_score in cov_scores]]
+    return [np.mean(pert_scores), *[np.mean(cov_score) for cov_score in cov_scores]]
 
 
 def evaluate_r2(autoencoder, dataset, genes_control):
