@@ -3,3 +3,9 @@ __pycache__
 *.egg-info/
 *.ipynb_checkpoints/
 *.pt
+
+.DS_Store
+.vscode/
+build/
+datasets/
+dist/

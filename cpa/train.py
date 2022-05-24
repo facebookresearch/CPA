@@ -376,7 +376,7 @@ def parse_arguments():
     parser.add_argument("--perturbation_key", type=str, default="condition")
     parser.add_argument("--control", type=str, default=None)
     parser.add_argument("--dose_key", type=str, default="dose_val")
-    parser.add_argument("--covariate_keys", nargs="*", type=str, default="cell_type")
+    parser.add_argument("--covariate_keys", nargs="*", type=str, default=["cell_type"])
     parser.add_argument("--split_key", type=str, default="split")
     parser.add_argument("--loss_ae", type=str, default="gauss")
     parser.add_argument("--doser_type", type=str, default="sigm")
