@@ -361,8 +361,6 @@ class CPA(torch.nn.Module):
         """
 
         genes, drugs, covariates = self.move_inputs_(genes, drugs, covariates)
-        if self.loss_ae == 'nb':
-            genes = torch.log1p(genes)
 
         latent_basal = self.encoder(genes)
 
@@ -378,19 +376,21 @@ class CPA(torch.nn.Module):
                 )  #argmax because OHE
 
         gene_reconstructions = self.decoder(latent_treated)
+        dim = gene_reconstructions.size(1) // 2
         if self.loss_ae == 'gauss':
             # convert variance estimates to a positive value in [1e-3, \infty)
-            dim = gene_reconstructions.size(1) // 2
             gene_means = gene_reconstructions[:, :dim]
             gene_vars = F.softplus(gene_reconstructions[:, dim:]).add(1e-3)
             #gene_vars = gene_reconstructions[:, dim:].exp().add(1).log().add(1e-3)
+            gene_reconstructions = torch.cat([gene_means, gene_vars], dim=1)
 
         if self.loss_ae == 'nb':
-            gene_means = F.softplus(gene_means).add(1e-3)
+            gene_mus = F.softplus(gene_reconstructions[:, :dim]).add(1e-3)
+            gene_thetas = F.softplus(gene_reconstructions[:, dim:]).add(1e-3)
             #gene_reconstructions[:, :dim] = torch.clamp(gene_reconstructions[:, :dim], min=1e-4, max=1e4)
             #gene_reconstructions[:, dim:] = torch.clamp(gene_reconstructions[:, dim:], min=1e-4, max=1e4)
-        gene_reconstructions = torch.cat([gene_means, gene_vars], dim=1)
-                
+            gene_reconstructions = torch.cat([gene_mus, gene_thetas], dim=1)
+
         if return_latent_basal:
             if return_latent_treated:
                 return gene_reconstructions, latent_basal, latent_treated
@@ -430,9 +430,7 @@ class CPA(torch.nn.Module):
         )
 
         dim = gene_reconstructions.size(1) // 2
-        gene_means = gene_reconstructions[:, :dim]
-        gene_vars = gene_reconstructions[:, dim:]
-        reconstruction_loss = self.loss_autoencoder(gene_means, genes, gene_vars)
+        reconstruction_loss = self.loss_autoencoder(gene_reconstructions[:, :dim], genes, gene_reconstructions[:, dim:])
         adversary_drugs_loss = torch.tensor([0.0], device=self.device)
         if self.num_drugs > 0:
             adversary_drugs_predictions = self.adversary_drugs(latent_basal)
