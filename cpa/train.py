@@ -114,7 +114,7 @@ def evaluate_disentanglement(autoencoder, dataset):
         return [np.mean(pert_scores), *[np.mean(cov_score) for cov_score in cov_scores]]
 
 
-def evaluate_r2(autoencoder, dataset, genes_control):
+def evaluate_r2(autoencoder, dataset, genes_control, min_samples=30):
     """
     Measures different quality metrics about an CPA `autoencoder`, when
     tasked to translate some `genes_control` into each of the drug/covariates
@@ -128,8 +128,6 @@ def evaluate_r2(autoencoder, dataset, genes_control):
     mean_score, var_score, mean_score_de, var_score_de = [], [], [], []
     num, dim = genes_control.size(0), genes_control.size(1)
 
-    total_cells = len(dataset)
-
     for pert_category in np.unique(dataset.pert_categories):
         # pert_category category contains: 'celltype_perturbation_dose' info
         de_idx = np.where(
@@ -138,7 +136,8 @@ def evaluate_r2(autoencoder, dataset, genes_control):
 
         idx = np.where(dataset.pert_categories == pert_category)[0]
 
-        if len(idx) > 30:
+        # estimate metrics only for reasonably-sized drug/cell-type combos
+        if len(idx) > min_samples:
             emb_drugs = dataset.drugs[idx][0].view(1, -1).repeat(num, 1).clone()
             emb_covars = [
                 covar[idx][0].view(1, -1).repeat(num, 1).clone()
@@ -169,14 +168,12 @@ def evaluate_r2(autoencoder, dataset, genes_control):
                     total_count=counts,
                     logits=logits
                 )
-                nb_sample = dist.sample().cpu().numpy()
-                yp_m = nb_sample.mean(0)
-                yp_v = nb_sample.var(0)
+                yp_m = dist.mean.mean(0)
+                yp_v = dist.variance.mean(0)
             else:
                 # predicted means and variances
                 yp_m = mean_predict.mean(0)
                 yp_v = var_predict.mean(0)
-            # estimate metrics only for reasonably-sized drug/cell-type combos
 
             y_true = dataset.genes[idx, :].numpy()
 
