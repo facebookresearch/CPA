@@ -9,3 +9,4 @@ __pycache__
 build/
 datasets/
 dist/
+log/
