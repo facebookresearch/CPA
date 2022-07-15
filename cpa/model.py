@@ -454,7 +454,7 @@ class CPA(torch.nn.Module):
         adversary_drugs_penalty = torch.tensor([0.0], device=self.device)
         adversary_covariates_penalty = torch.tensor([0.0], device=self.device)
 
-        if self.iteration % self.hparams["adversary_steps"]:
+        if self.iteration % self.hparams["adversary_steps"] == 0:
 
             def compute_gradients(output, input):
                 grads = torch.autograd.grad(output, input, create_graph=True)
