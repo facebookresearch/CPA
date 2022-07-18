@@ -23,15 +23,11 @@ The repository is centered around the `cpa` module:
 * [`cpa.plotting`](cpa/plotting.py) contains scripts to plotting functions.
 * [`cpa.model`](cpa/model.py) contains modules of cpa model.
 * [`cpa.data`](cpa/data.py) contains data loader, which transforms anndata structure to a class compatible with cpa model.
-* [`cpa.collect_results`](cpa/collect_results.py) contains script for automatic model selection from sweeps.
 
 Additional files and folders:
 
 * [`datasets`](datasets/) contains both versions of the data: raw and pre-processed.
 * [`preprocessing`](preprocessing/) contains notebooks to reproduce the datasets pre-processing from raw data.
-* [`notebooks`](notebooks/) contains notebooks to reproduce plots from the paper and detailed analysis of each of the datasets.
-* [`pretrained_models`](pretrained_models/) contains best models selected after the sweeps. These models were used for the analysis and figures in the paper.
-* [`scripts`](scripts/) contains bash files for automatic running of the model.
 
 ## Usage
 
@@ -41,14 +37,10 @@ Additional files and folders:
 To learn how to use this repository, check 
 [`./notebooks/demo.ipynb`](notebooks/demo.ipynb), and the following scripts:
 
-* [`./scripts/run_one_epoch.sh`](scripts/run_one_epoch.sh) runs one epoch for all datasets.
-* [`./scripts/run_sweeps.sh`](scripts/run_sweeps.sh) runs all sweeps.
-* [`./scripts/run_collect_results.sh`](scripts/run_collect_results.sh), given a sweep, runs model-selection and prints results.
 
-* Note that hyperparameters in the `demo.ipynb` are not default and will not work work for new datasets. Please make
-sure to run `run_sweeps.sh` for your new dataset to find best hyperparameters.
+* Note that hyperparameters in the `demo.ipynb` are set as default but might not work work for new datasets.
 ## Examples and Reproducibility
-All the examples and the reproducbility notebooks for the plots in the paper could be found in the [`notebooks/`](notebooks/) folder.
+All the examples and the reproducbility notebooks for the plots in the paper could be found in the [`reproducibility`](https://github.com/theislab/cpa-reproducibility) repo.
 
 ## Curation of your own data to train CPA
 
@@ -61,10 +53,6 @@ There are two ways to train a cpa model:
 
 * Using the command line, e.g.: `python -m cpa.train --data datasets/GSM_new.h5ad  --save_dir /tmp --max_epochs 1 --doser_type sigm`
 * From jupyter notebook: example in [`./notebooks/demo.ipynb`](notebooks/demo.ipynb)
-
-## Testing
-
-Run `python ./scripts/run_one_epoch.sh` to perfrom automatic testing for one epoch of all the datasets used in the study.
 
 
 ## Documentation
