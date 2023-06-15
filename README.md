@@ -1,8 +1,5 @@
 # CPA - Compositional Perturbation Autoencoder
 
-`CPA` is a collaborative research project from
-Facebook AI Research (FAIR) and a computatiobal biology group of Prof. Fabian 
-Theis (https://github.com/theislab) from Helmholtz Zentrum München. 
 
 ## What is CPA?
 ![Screenshot](Figure1.png)
@@ -40,7 +37,7 @@ To learn how to use this repository, check
 
 * Note that hyperparameters in the `demo.ipynb` are set as default but might not work work for new datasets.
 ## Examples and Reproducibility
-All the examples and the reproducbility notebooks for the plots in the paper could be found in the [`reproducibility`](https://github.com/theislab/cpa-reproducibility) repo.
+you can find more example and  hyperparamters tuning scripts and also reproducbility notebooks for the plots in the paper in the [`reproducibility`](https://github.com/theislab/cpa-reproducibility) repo.
 
 ## Curation of your own data to train CPA
 
@@ -78,23 +75,18 @@ If you have a question or noticed a problem, you can post an [`issue`](https://g
 
 ## Reference
 
-Please cite the following preprint if you find CPA useful in your research.
+Please cite the following publication if you find CPA useful in your research.
 ```
-@article {Lotfollahi2021.04.14.439903,
-	author = {Lotfollahi, Mohammad and Susmelj, Anna Klimovskaia and De Donno, Carlo and Ji, Yuge and Ibarra, Ignacio L. and Wolf, F. Alexander and Yakubova, Nafissa and Theis, Fabian J. and Lopez-Paz, David},
-	title = {Learning interpretable cellular responses to complex perturbations in high-throughput screens},
-	elocation-id = {2021.04.14.439903},
-	year = {2021},
-	doi = {10.1101/2021.04.14.439903},
-	publisher = {Cold Spring Harbor Laboratory},
-
-	URL = {https://www.biorxiv.org/content/early/2021/05/18/2021.04.14.439903},
-	eprint = {https://www.biorxiv.org/content/early/2021/05/18/2021.04.14.439903.full.pdf},
-	journal = {bioRxiv}
+@article{lotfollahi2023predicting,
+  title={Predicting cellular responses to complex perturbations in high-throughput screens},
+  author={Lotfollahi, Mohammad and Klimovskaia Susmelj, Anna and De Donno, Carlo and Hetzel, Leon and Ji, Yuge and Ibarra, Ignacio L and Srivatsan, Sanjay R and Naghipourfar, Mohsen and Daza, Riza M and Martin, Beth and others},
+  journal={Molecular Systems Biology},
+  pages={e11517},
+  year={2023}
 }
 ```
 
-The preprint titled **Learning interpretable cellular responses to complex perturbations in high-throughput screens** can be found [here](https://www.biorxiv.org/content/10.1101/2021.04.14.439903v2).
+The paper titled **Predicting cellular responses to complex perturbations in high-throughput screens** can be found [here](https://www.biorxiv.org/content/10.1101/2021.04.14.439903v2](https://www.embopress.org/doi/full/10.15252/msb.202211517).
 ## License
 
 This source code is released under the MIT license, included [here](LICENSE).
