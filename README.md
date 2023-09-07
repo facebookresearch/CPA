@@ -1,5 +1,7 @@
 # CPA - Compositional Perturbation Autoencoder
 
+# This code in not being maintained anymore, please use the new implementation [here](https://github.com/theislab/cpa).
+
 
 ## What is CPA?
 ![Screenshot](Figure1.png)
